@@ -1,0 +1,343 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Tareas</title>
+<meta name="description" content="Temporizador Pomodoro con tareas, bitácora, notas y calendario.">
+<meta name="theme-color" content="#c8452c">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Tareas">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap">
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+<canvas id="scene" aria-hidden="true"></canvas>
+<div class="wrap">
+  <header class="top">
+    <h1>Organizador de Tareas</h1>
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:flex-end">
+      <span class="sync" id="sync">Guardado en este navegador</span>
+      <button class="btn sm" id="tHeadBtn" type="button" title="Abrir las tareas al costado">Tareas</button>
+      <button class="btn sm" id="jHeadBtn" type="button" title="Abrir la bitácora al costado">Bitácora</button>
+      <button class="btn sm" id="wkBtn" type="button" title="Tiempo por proyecto, tareas cerradas y bitácora de la semana">Resumen</button>
+      <button class="btn sm iconbtn" id="ckBtn" type="button" title="Buscar (Ctrl+K)" aria-label="Buscar"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="4.6"/><path d="M10.4 10.4 14 14"/></svg></button>
+      <button class="btn sm" id="openSettings" type="button">Ajustes</button>
+    </div>
+  </header>
+
+  <div class="grid" id="grid">
+    <div class="leftcol">
+    <section class="panel timer" aria-label="Temporizador">
+      <div class="modes" role="group" aria-label="Modo">
+        <button type="button" data-mode="focus">Enfoque</button>
+        <button type="button" data-mode="short">Pausa corta</button>
+        <button type="button" data-mode="long">Pausa larga</button>
+      </div>
+      <div class="dial">
+        <svg viewBox="0 0 200 200" aria-hidden="true">
+          <g class="ticks" id="ticks"></g>
+          <circle class="trk" cx="100" cy="100" r="88" fill="none" stroke-width="8"/>
+          <circle class="prg" id="prg" cx="100" cy="100" r="88" fill="none" stroke-width="8" stroke-linecap="round"/>
+        </svg>
+        <div class="readout">
+          <div class="time" id="time" aria-live="off">25:00</div>
+          <div class="sub" id="sub"></div>
+        </div>
+      </div>
+      <div class="ctrl">
+        <button class="btn" type="button" id="reset" title="Reiniciar (R)">Reiniciar</button>
+        <button class="btn primary" type="button" id="toggle">Iniciar</button>
+        <button class="btn" type="button" id="skip" title="Saltar (S)">Saltar</button>
+        <button class="btn pipbtn" type="button" id="floatBtn" title="Ventana flotante" aria-label="Abrir ventana flotante"><svg viewBox="0 0 16 16" aria-hidden="true"><rect x="1.5" y="2.5" width="13" height="10" rx="1.5"/><rect x="8" y="7.5" width="5" height="3.5" rx=".6" fill="currentColor" stroke="none"/></svg></button>
+      </div>
+      <div class="cyc" id="cyc" aria-hidden="true"></div>
+      <div class="now" id="now"></div>
+      <div class="keys"><kbd>Espacio</kbd> iniciar o pausar · <kbd>R</kbd> reiniciar · <kbd>S</kbd> saltar · <kbd>I</kbd> interrupción · <kbd>C</kbd> calendario · <kbd>Ctrl K</kbd> buscar</div>
+    </section>
+    <section class="panel tasks-panel" aria-label="Tareas">
+      <div class="ph">
+        <div class="tasks-head">
+          <button class="collapse" type="button" id="collapseTasks" aria-expanded="true" aria-controls="tasksBody" title="Contraer tareas"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M6 3l5 5-5 5"/></svg></button>
+          <div class="ptabs" role="tablist" aria-label="Vista"><button type="button" role="tab" data-tab="tasks" aria-selected="true">Tareas</button><button type="button" role="tab" data-tab="journal" aria-selected="false">Bitácora</button></div>
+          <button class="btn sm kbbtn" type="button" id="kanbanBtn" title="Ver tablero por estado"><svg viewBox="0 0 16 16" aria-hidden="true"><rect x="1.5" y="2" width="3.5" height="12" rx="1"/><rect x="6.25" y="2" width="3.5" height="8" rx="1"/><rect x="11" y="2" width="3.5" height="10" rx="1"/></svg>Kanban</button>
+          <button class="btn sm kbbtn" type="button" id="calBtn" title="Ver las tareas por fecha (tecla C)"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 2.5h10A1.5 1.5 0 0 1 14.5 4v9a1.5 1.5 0 0 1-1.5 1.5H3A1.5 1.5 0 0 1 1.5 13V4A1.5 1.5 0 0 1 3 2.5Zm-.5 4v6.5c0 .28.22.5.5.5h10a.5.5 0 0 0 .5-.5V6.5Z"/><rect x="4" y="1" width="1.6" height="3" rx=".6"/><rect x="10.4" y="1" width="1.6" height="3" rx=".6"/></svg>Calendario</button>
+          <span class="pend" id="pendCount" title="Tareas pendientes"></span>
+          <button class="btn sm tside-x" type="button" id="tDock" title="Volver a ponerlas en su lugar del panel">Acoplar</button>
+          <button class="icon tside-x" type="button" id="tSideClose" aria-label="Cerrar panel de tareas" title="Cerrar (Esc)"><svg class="ic" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8"/></svg></button>
+        </div>
+        <div class="fwrap">
+        <div class="tsearch"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input type="search" id="tSearch" placeholder="Buscar…" aria-label="Buscar tareas" autocomplete="off"><button type="button" id="tSearchClear" aria-label="Borrar búsqueda" hidden>×</button></div>
+        <div class="filters" id="taskFilters" role="group" aria-label="Filtro">
+          <button class="chip" type="button" data-f="star" title="Tareas marcadas con estrella para hoy"><svg class="ic fill" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 1.9l1.85 3.85 4.2.55-3.07 2.92.78 4.17L8 11.35 4.24 13.4l.78-4.17L1.95 6.3l4.2-.55z"/></svg>Hoy<span class="cnt" id="starCnt"></span></button>
+          <button class="chip late" type="button" data-f="late" id="lateChip" title="Tareas vencidas o que vencen hoy" hidden>Atrasadas<span class="cnt" id="lateCnt"></span></button>
+          <button class="chip" type="button" data-f="open" title="Por hacer y En revisión">Pendientes</button>
+          <span class="fmorew"><button class="chip" type="button" id="fMore" aria-haspopup="true" aria-expanded="false" title="Más filtros"><span id="fMoreLbl">Más</span><span class="cnt" id="fMoreCnt"></span> ▾</button>
+            <span class="fmore" id="fMorePop" hidden role="menu">
+              <button class="chip" type="button" data-f="inbox" title="Tareas del ingreso rápido aún sin clasificar">Sin asignar<span class="cnt" id="inboxCnt"></span></button>
+              <button class="chip" type="button" data-f="doing">En curso</button>
+              <button class="chip" type="button" data-f="paused">En pausa</button>
+              <button class="chip" type="button" data-f="backlog">Backlog</button>
+              <button class="chip" type="button" data-f="done">Cerradas</button>
+              <button class="chip" type="button" data-f="all">Todas</button>
+            </span></span>
+        </div>
+        </div>
+      </div>
+      <div class="tasks-body" id="tasksBody">
+      <form class="add" id="addTask" autocomplete="off" hidden>
+        <div class="r1">
+          <input type="text" id="tTitle" placeholder="¿En qué vas a trabajar?" aria-label="Nueva tarea" required><button class="star tstar" type="button" id="tStar" aria-pressed="false" aria-label="Marcar para hoy" title="Marcar para hoy (★ Hoy)"></button>
+        </div>
+        <div class="r2">
+          <label class="fld"><span>Proyecto</span><input type="text" id="tTag" placeholder="Opcional" list="tags"></label>
+          <label class="fld"><span>Estado</span><select id="tStatus"><option value="inbox">Sin asignar</option><option value="backlog">Backlog</option><option value="todo" selected>Por hacer</option><option value="doing">En curso</option><option value="paused">En pausa</option><option value="review">En revisión</option></select></label>
+          <label class="fld"><span>Criticidad</span><select id="tCrit"><option value="alta">Alta</option><option value="media" selected>Media</option><option value="baja">Baja</option></select></label>
+          <label class="fld"><span>Vence</span><input type="date" id="tDue"></label>
+          <label class="fld"><span>Repetir</span><select id="tRec"><option value="">No se repite</option><option value="day">Cada día</option><option value="weekday">Lunes a viernes</option><option value="week">Cada semana</option><option value="month">Cada mes</option></select></label>
+        </div>
+        <div class="r3"><button class="btn" type="button" id="cancelTask">Cancelar</button><button class="btn primary" type="submit">Agregar</button></div>
+        <datalist id="tags"></datalist>
+      </form>
+      <form class="add" id="quickAdd" autocomplete="off" hidden>
+        <label class="fld" style="display:grid;gap:6px"><span>Ingreso rápido: escribe las tareas separadas por coma</span>
+          <textarea id="qaText" rows="3" placeholder="tarea 1, completar ticket, hacer ingreso de cac"></textarea></label>
+        <div class="r3"><button class="btn sm qstar" type="button" id="qaStar" aria-pressed="false" title="Marcar estas tareas para hoy (★ Hoy)"></button><span class="meta" id="qaCount" style="margin:0 auto 0 0"></span><button class="btn" type="button" id="qaCancel">Cancelar</button><button class="btn primary" type="submit" id="qaSubmit">Agregar</button></div>
+      </form>
+      <div class="tbar">
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><button class="btn sm primary" type="button" id="newTaskBtn">+ Nueva tarea</button><button class="btn sm green" type="button" id="quickBtn" title="Agrega varias tareas de una vez, separadas por coma"><svg class="ic" viewBox="0 0 16 16" aria-hidden="true"><path d="M9 1.6L3.6 9H8l-1 5.4L12.4 7H8z"/></svg>Ingreso rápido</button></div>
+        <div class="tsel">
+          <select id="tagSel" class="sortsel" aria-label="Filtrar por proyecto" title="Filtrar por proyecto"><option value="">Todos los proyectos</option></select>
+          <select id="sort" class="sortsel" aria-label="Ordenar por" title="Ordenar por"><option value="manual">Orden: el mío</option><option value="crit">Orden: criticidad</option><option value="due">Orden: vencimiento</option><option value="status">Orden: estado</option></select>
+        </div>
+      </div>
+      <ul class="list" id="tasks"></ul>
+      <div class="meta" id="taskSum" style="margin-top:10px"></div>
+      </div>
+      <div class="journal" id="journal" hidden>
+        <div class="jside-h"><h2>Bitácora</h2><div class="jnav"><button class="btn sm" type="button" id="jDock" title="Volver a ponerla como pestaña del panel">Acoplar</button><button class="btn sm" type="button" id="jClose" aria-label="Cerrar bitácora" title="Cerrar (Esc)"><svg class="ic" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8"/></svg></button></div></div>
+        <div class="jbar">
+          <div class="jnav">
+            <button class="jb" type="button" id="jPrev" title="Día anterior" aria-label="Día anterior">‹</button>
+            <select id="jDay" aria-label="Elegir día"></select>
+            <button class="jb" type="button" id="jNext" title="Día siguiente" aria-label="Día siguiente">›</button>
+            <button class="btn sm" type="button" id="jToday">Hoy</button>
+            <label class="btn sm jpick" title="Abrir o crear la bitácora de otro día"><svg class="ic" viewBox="0 0 16 16" aria-hidden="true"><rect x="2" y="3" width="12" height="11" rx="1.6"/><path d="M2 6.6h12M5.4 1.6v2.8M10.6 1.6v2.8"/></svg> Otro día<input type="date" id="jPick" aria-label="Elegir otro día"></label>
+          </div>
+          <div class="jnav">
+            <div class="tsearch jsearch"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input type="search" id="jSearch" placeholder="Buscar en la bitácora…" aria-label="Buscar en la bitácora" autocomplete="off"></div>
+            <button class="btn sm" type="button" id="jCopy" title="Copiar el día para pegarlo en otro lado">Copiar</button>
+            <div class="jmenu"><button class="btn sm" type="button" id="jMore" aria-haspopup="true" aria-expanded="false">Más ▾</button>
+              <div class="pop" id="jPop" hidden role="menu">
+                <button type="button" role="menuitem" data-j="dl-day">Descargar este día (.json)</button>
+                <button type="button" role="menuitem" data-j="dl-all">Descargar toda la bitácora (.json)</button>
+                <button type="button" role="menuitem" data-j="side" id="jSideItem">Abrir al costado</button>
+                <button type="button" role="menuitem" class="danger" data-j="del">Eliminar este día</button>
+              </div></div>
+          </div>
+        </div>
+        <div class="jresults" id="jResults" hidden></div>
+        <div class="jempty" id="jEmpty" hidden><div id="jEmptyMsg">Aún no empiezas la bitácora de este día.</div><div class="r"><button class="btn primary" type="button" id="jStartHeads">Empezar con los encabezados del día anterior</button><button class="btn" type="button" id="jStartBlank">Hoja en blanco</button></div></div>
+        <div class="jtools" role="toolbar" aria-label="Formato" id="jTools">
+          <button type="button" data-cmd="bold" title="Negrita (Ctrl+B)" aria-label="Negrita"><b>N</b></button>
+          <button type="button" data-cmd="italic" title="Cursiva (Ctrl+I)" aria-label="Cursiva"><i>K</i></button>
+          <button type="button" data-cmd="underline" title="Subrayado (Ctrl+U)" aria-label="Subrayado"><u>S</u></button>
+          <button type="button" data-cmd="strikeThrough" title="Tachado" aria-label="Tachado"><s>T</s></button>
+          <span class="sep"></span>
+          <button type="button" data-size="2" title="Texto pequeño" aria-label="Texto pequeño" style="font-size:.74rem">A</button>
+          <button type="button" data-size="3" title="Texto normal" aria-label="Texto normal">A</button>
+          <button type="button" data-size="5" title="Texto grande" aria-label="Texto grande" style="font-size:1.05rem;font-weight:700">A</button>
+          <span class="sep"></span>
+          <button type="button" data-cmd="insertUnorderedList" title="Lista con viñetas">• Lista</button>
+          <button type="button" data-cmd="insertOrderedList" title="Lista numerada">1. Lista</button>
+          <span class="jhl"><button type="button" id="jHlBtn" title="Destacar: color de fondo o de texto (Ctrl+Shift+H destaca en amarillo)" aria-haspopup="true" aria-expanded="false"><span class="hlic"><svg class="ic" viewBox="0 0 16 16" aria-hidden="true"><path d="M10 2.2l3.8 3.8-6.3 6.3H3.7V8.5z"/><path d="M2.2 14.3h6"/></svg></span> Destacar</button>
+            <span class="hlpop" id="jHlPop" hidden><span class="lb">Fondo</span><button type="button" class="sw" data-hl="#ffe066" style="--c:#ffe066" title="Amarillo" aria-label="Amarillo"></button><button type="button" class="sw" data-hl="#a9f0a0" style="--c:#a9f0a0" title="Verde" aria-label="Verde"></button><button type="button" class="sw" data-hl="#ffc2d4" style="--c:#ffc2d4" title="Rosado" aria-label="Rosado"></button><button type="button" class="sw" data-hl="#a5d8ff" style="--c:#a5d8ff" title="Celeste" aria-label="Celeste"></button><button type="button" class="sw" data-hl="#ffd8a8" style="--c:#ffd8a8" title="Naranjo" aria-label="Naranjo"></button><button type="button" class="sw none" data-hl="" title="Quitar destacado" aria-label="Quitar destacado"></button>
+              <span class="lb">Texto</span><button type="button" class="sw" data-tc="#e03131" style="--c:#e03131" title="Rojo" aria-label="Rojo"></button><button type="button" class="sw" data-tc="#e8590c" style="--c:#e8590c" title="Naranjo" aria-label="Naranjo"></button><button type="button" class="sw" data-tc="#2f9e44" style="--c:#2f9e44" title="Verde" aria-label="Verde"></button><button type="button" class="sw" data-tc="#1c7ed6" style="--c:#1c7ed6" title="Azul" aria-label="Azul"></button><button type="button" class="sw" data-tc="#9c36b5" style="--c:#9c36b5" title="Morado" aria-label="Morado"></button><button type="button" class="sw none" data-tc="" title="Quitar color de texto" aria-label="Quitar color de texto"></button></span></span>
+          <span class="sep"></span>
+          <button type="button" id="jFont" aria-pressed="true" title="Letra monoespaciada, como Notepad++">Mono</button>
+          <span class="sep"></span>
+          <button type="button" id="jCodeBtn" title="Bloque de código (también: escribe ``` y Enter, o Ctrl+Shift+K)"><svg class="ic" viewBox="0 0 16 16" aria-hidden="true"><path d="M5.6 4.2L1.8 8l3.8 3.8M10.4 4.2L14.2 8l-3.8 3.8"/></svg> Código</button>
+          <button type="button" id="jTblBtn" title="Insertar una tabla"><svg class="ic" viewBox="0 0 16 16" aria-hidden="true"><path d="M3.4 2.8h9.2a1.4 1.4 0 0 1 1.4 1.4v7.6a1.4 1.4 0 0 1-1.4 1.4H3.4A1.4 1.4 0 0 1 2 11.8V4.2a1.4 1.4 0 0 1 1.4-1.4zM2 6.3h12M2 9.8h12M6.2 2.8v10.4M10.2 2.8v10.4"/></svg> Tabla</button>
+          <button type="button" id="jLinkBtn" title="Adjuntar un link (OneDrive, SharePoint, web…)"><svg class="ic" viewBox="0 0 16 16" aria-hidden="true"><path d="M6.7 9.3a2.6 2.6 0 0 0 3.7 0l2.3-2.3a2.6 2.6 0 0 0-3.7-3.7l-.9.9M9.3 6.7a2.6 2.6 0 0 0-3.7 0L3.3 9a2.6 2.6 0 0 0 3.7 3.7l.9-.9"/></svg> Link</button>
+          <button type="button" id="jTagBtn" title="Agregar un tag (también puedes escribir / en el texto)"># Tag</button>
+          <button type="button" id="jToTask" title="Convertir la línea actual o el texto seleccionado en una tarea (Ctrl+Shift+E)"><svg class="ic" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8h9.6M9 4.4L12.6 8 9 11.6"/></svg> Tarea</button>
+          <span class="jstate" id="jState"></span>
+        </div>
+        <div class="jtblbar" id="jTblBar" role="toolbar" aria-label="Tabla" hidden><button type="button" data-tb="col+">+ Columna</button><button type="button" data-tb="col-" class="del">− Columna</button><span class="sep"></span><button type="button" data-tb="row+">+ Fila</button><button type="button" data-tb="row-" class="del">− Fila</button><span class="sep"></span><button type="button" data-tb="wide" aria-pressed="false" id="jTblWide">Ancho completo</button><span class="sep"></span><button type="button" data-tb="del" class="del">Quitar tabla</button></div>
+        <form class="jlinkpop" id="jLinkPop" autocomplete="off" hidden><input type="url" id="jLinkUrl" placeholder="Pega el link (OneDrive, SharePoint, web…)" aria-label="Link"><input type="text" id="jLinkName" placeholder="Nombre (opcional)" aria-label="Nombre del link"><div class="r"><button class="btn sm" type="button" id="jLinkCancel">Cancelar</button><button class="btn sm primary" type="submit">Adjuntar</button></div></form>
+        <button type="button" class="jcopy" id="jCodeCopy" hidden>Copiar</button>
+        <div class="jed" id="jEd" contenteditable="true" spellcheck="true" role="textbox" aria-multiline="true" aria-label="Bitácora del día"></div>
+        <div class="jclosed" id="jClosed"></div>
+      </div>
+    </section>
+    <section class="panel notes-panel" id="notesPanel" aria-label="Notas">
+      <div class="ph"><div class="tasks-head"><button class="collapse" type="button" id="collapseNotes" aria-expanded="true" aria-controls="notesBody" title="Contraer notas"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M6 3l5 5-5 5"/></svg></button><h2>Notas</h2><span class="label" id="noteCount"></span></div>
+        <button class="btn sm primary" type="button" id="newNoteBtn">+ Nueva nota</button></div>
+      <div class="notes-body" id="notesBody">
+      <form class="newnote" id="addNote" hidden>
+        <textarea id="nText" rows="3" placeholder="Anota una idea, un pendiente o algo que no quieres olvidar. Ctrl+Enter para guardar."></textarea>
+        <div class="r">
+          <select id="nTask" aria-label="Vincular a tarea"></select>
+          <div><button class="btn" type="button" id="cancelNote">Cancelar</button><button class="btn primary" type="submit">Guardar</button></div>
+        </div>
+      </form>
+      <ul class="list" id="notes"></ul>
+      </div>
+    </section>
+    </div>
+
+  </div>
+
+  <div class="row2">
+    <section class="panel music" id="musicPanel" aria-label="Música">
+      <div class="ph"><div class="tasks-head"><button class="collapse" type="button" id="collapseMusic" aria-expanded="true" aria-controls="musicBody" title="Contraer música"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M6 3l5 5-5 5"/></svg></button><h2>Música</h2></div><span class="label" id="ambState">Detenido</span></div>
+      <div class="music-body" id="musicBody">
+      <div class="amb">
+        <button class="btn track" type="button" id="ambPlay" aria-label="Reproducir sonido ambiente" title="Reproducir"></button>
+        <div class="filters" role="group" aria-label="Sonido ambiente">
+          <button class="chip" type="button" data-amb="lofi">Lo-fi</button>
+          <button class="chip" type="button" data-amb="rain">Lluvia</button>
+          <button class="chip" type="button" data-amb="cafe">Cafetería</button>
+          <button class="chip" type="button" data-amb="white">Ruido blanco</button>
+        </div>
+        <input type="range" id="ambVol" min="0" max="1" step="0.05" aria-label="Volumen">
+      </div>
+      <label class="meta chk" style="margin-top:8px"><input type="checkbox" id="ambSync"> Sonar solo mientras corre el enfoque</label>
+      <div class="label" style="margin-top:14px">Tus listas</div>
+      <div class="srcbtns">
+        <button class="srcbtn sp-b" type="button" data-src="sp" aria-pressed="false"><span class="blogo sp-l"></span>Spotify</button>
+        <button class="srcbtn yt-b" type="button" data-src="yt" aria-pressed="false"><span class="blogo yt-l"></span>YouTube</button>
+      </div>
+      <form class="spadd" id="spAdd" autocomplete="off" hidden>
+        <input type="text" id="spUrl" aria-label="Link">
+        <input type="text" id="spName" placeholder="Nombre (opcional)" aria-label="Nombre">
+        <div class="ytmode" id="ytMode"><label class="chk"><input type="radio" name="ytm" value="audio" checked> Solo escuchar</label><label class="chk"><input type="radio" name="ytm" value="video"> Ver video</label></div>
+        <div class="r"><button class="btn sm" type="button" id="spCancel">Cancelar</button><button class="btn sm primary" type="submit">Agregar</button></div>
+      </form>
+      <div class="meta" id="spErr" style="color:var(--danger)" hidden></div>
+      <div id="spPlayer" class="spplayer" hidden></div>
+      <ul class="list" id="spList"></ul>
+      <div class="label radhead" style="margin-top:14px">Radios</div>
+      <div class="meta" id="radOff" hidden>Las radios se escuchan en la copia descargada del panel o en la app instalada. Esta vista de Claude no permite conectarse a las emisoras.</div>
+      <div id="radBox">
+        <div class="radbar">
+          <select id="radCountry" class="sortsel" aria-label="País"></select>
+          <div class="tsearch radsearch"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><input type="search" id="radQ" placeholder="Buscar emisora" aria-label="Buscar emisora"></div>
+        </div>
+        <div class="radnow" id="radNow" hidden></div>
+        <ul class="radlist" id="radList" aria-live="polite"></ul>
+        <button class="linkbtn" type="button" id="radMore" hidden>Ver más emisoras</button>
+        <div class="meta radsrc">Emisoras de <a href="https://www.radio-browser.info" target="_blank" rel="noopener noreferrer">radio-browser.info</a>, un directorio abierto.</div>
+      </div>
+      </div>
+    </section>
+
+    <section class="panel" aria-label="Resumen del día">
+      <div class="ph"><h2>Hoy</h2><span class="label" id="today"></span></div>
+      <div class="stats">
+        <div class="stat"><div class="label">Pomodoros</div><div class="v" id="sPomo">0</div></div>
+        <div class="stat"><div class="label">Minutos</div><div class="v" id="sMin">0</div></div>
+        <div class="stat"><div class="label">Racha</div><div class="v" id="sStreak">0</div></div>
+      </div>
+      <div class="goal" id="goal" aria-label="Meta diaria"></div>
+      <div class="meta" id="goalTxt"></div>
+      <div class="label" style="margin-top:14px">Registro</div>
+      <ul class="log" id="log"></ul>
+    </section>
+  </div>
+</div>
+
+<dialog id="settings">
+  <form class="form" method="dialog" id="setForm">
+    <div class="sethead"><h2>Ajustes</h2><button class="icon" type="button" id="setClose" aria-label="Cerrar sin guardar"><svg class="ic" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8"/></svg></button></div>
+    <div class="setwrap">
+      <nav class="setnav" id="setNav" role="tablist" aria-label="Secciones de ajustes" aria-orientation="vertical">
+        <button type="button" role="tab" id="setTab-timer" data-sec="timer" data-ic="timer">Temporizador</button>
+        <button type="button" role="tab" id="setTab-look" data-sec="look" data-ic="image">Apariencia</button>
+        <button type="button" role="tab" id="setTab-bak" data-sec="bak" data-ic="down">Respaldo</button>
+        <button type="button" role="tab" id="setTab-data" data-sec="data" data-ic="trash">Datos</button>
+      </nav>
+      <div class="setpanes">
+      <section class="setsec" id="set-timer" role="tabpanel" aria-labelledby="setTab-timer" hidden>
+        <h3>Temporizador</h3><p class="meta setdesc">Duración de cada etapa, meta del día y qué pasa al terminar.</p>
+    <div class="r"><label for="cFocus">Enfoque (min)</label><input type="number" id="cFocus" min="1" max="120"></div>
+    <div class="r"><label for="cShort">Pausa corta (min)</label><input type="number" id="cShort" min="1" max="60"></div>
+    <div class="r"><label for="cLong">Pausa larga (min)</label><input type="number" id="cLong" min="1" max="90"></div>
+    <div class="r"><label for="cEvery">Pausa larga cada (pomodoros)</label><input type="number" id="cEvery" min="2" max="10"></div>
+    <div class="r"><label for="cGoal">Meta diaria (pomodoros)</label><input type="number" id="cGoal" min="1" max="30"></div>
+    <label class="chk"><input type="checkbox" id="cAutoB"> Iniciar pausas automáticamente</label>
+    <label class="chk"><input type="checkbox" id="cAutoF"> Iniciar el siguiente pomodoro automáticamente</label>
+    <label class="chk"><input type="checkbox" id="cSound"> Sonido al terminar</label>
+      </section>
+      <section class="setsec" id="set-look" role="tabpanel" aria-labelledby="setTab-look" hidden>
+        <h3>Apariencia</h3><p class="meta setdesc">Los cambios de esta sección se aplican al momento.</p>
+    <div class="setopt"><div class="setlbl">Tema</div><div class="seg" id="themeSeg" role="group" aria-label="Tema"><button type="button" data-theme-opt="system" data-ic="monitor">Sistema</button><button type="button" data-theme-opt="light" data-ic="sun">Claro</button><button type="button" data-theme-opt="dark" data-ic="moon">Oscuro</button></div></div>
+    <div class="setopt"><div class="setlbl">Paneles</div><div class="seg" id="laySeg" role="group" aria-label="Ubicación de los paneles"><button type="button" data-lay-opt="side" data-ic="cols">Al lado del reloj</button><button type="button" data-lay-opt="below" data-ic="rows">Debajo del reloj</button></div><div class="meta" id="layNote">Al lado se usa en pantallas anchas, de 1100 px o más. En pantallas más angostas los paneles van siempre debajo.</div></div>
+    <div><div class="setlbl">Fondo</div><div class="bgpick" id="bgPick"></div></div>
+    <label class="chk"><input type="checkbox" id="cFocusMode"> Modo enfoque: atenuar todo menos el reloj mientras corre un pomodoro</label>
+      </section>
+      <section class="setsec" id="set-bak" role="tabpanel" aria-labelledby="setTab-bak" hidden>
+        <h3>Respaldo</h3><p class="meta setdesc">Los cambios de esta sección se aplican al momento.</p>
+    <div class="bakset">
+      <div class="r"><label for="cBakAuto">Respaldo automático</label><select id="cBakAuto" class="sortsel" style="width:auto;min-width:150px"><option value="0">No</option><option value="1">Sí</option></select></div>
+      <div class="r" id="bakModeRow" hidden><label for="cBakMode">Dónde guardarlo</label><select id="cBakMode" class="sortsel" style="width:auto;min-width:150px;max-width:230px"><option value="dir">En una carpeta que elijo</option><option value="dl">Descarga diaria</option></select></div>
+      <div class="r" id="bakEveryRow"><label for="cBakEvery">Recordarme respaldar</label><select id="cBakEvery" class="sortsel" style="width:auto;min-width:150px"><option value="1">Cada día</option><option value="7">Cada semana</option></select></div>
+      <div class="meta" id="bakInfo" style="margin:0"></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn sm" type="button" id="bakDir" hidden>Elegir carpeta…</button><button class="btn sm" type="button" id="bakNow" title="Guardar un respaldo de tareas, notas, bitácora y ajustes">Descargar respaldo ahora</button><button class="btn sm" type="button" id="importBtn" title="Cargar un respaldo descargado antes">Importar respaldo…</button><input type="file" id="importFile" accept=".json,application/json" hidden></div>
+    </div>
+      </section>
+      <section class="setsec" id="set-data" role="tabpanel" aria-labelledby="setTab-data" hidden>
+        <h3>Datos</h3><p class="meta setdesc">Limpieza de la lista de tareas.</p>
+        <div class="setrow"><div><b>Borrar tareas hechas</b><div class="meta" style="margin:0">Elimina todas las tareas cerradas. No se puede deshacer.</div></div><button class="btn ghost danger" type="button" id="clearDone">Borrar</button></div>
+      </section>
+      </div>
+    </div>
+    <div class="setfoot">
+      <div style="display:flex;gap:8px">
+        <button class="btn" value="cancel" type="submit">Cancelar</button>
+        <button class="btn primary" value="ok" type="submit" id="saveSet">Guardar</button>
+      </div>
+    </div>
+  </form>
+</dialog>
+<dialog id="kanban" class="kanban" aria-labelledby="kbTitle">
+  <div class="kbhead"><div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap"><h2 id="kbTitle">Tablero de tareas</h2><div class="ptabs kbview" role="group" aria-label="Qué tareas ver"><button type="button" data-kbv="all" aria-pressed="true">Todas</button><button type="button" data-kbv="today" aria-pressed="false" title="Solo las tareas marcadas con ★ para hoy">★ Hoy<span class="cnt" id="kbStarCnt"></span></button></div></div><span class="meta kbhint" style="margin:0">Arrastra una tarjeta a otra columna para cambiar su estado.</span><button class="icon" type="button" id="kbClose" aria-label="Cerrar"><svg class="ic" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8"/></svg></button></div>
+  <div class="kbcols" id="kbCols"></div>
+</dialog>
+<dialog id="cal" class="kanban caldlg" aria-labelledby="calTitle">
+  <div class="calhead"><h2 id="calTitle">Calendario</h2>
+    <div class="ptabs kbview" role="group" aria-label="Vista"><button type="button" data-calv="day" aria-pressed="false">Día</button><button type="button" data-calv="week" aria-pressed="true">Semana</button><button type="button" data-calv="month" aria-pressed="false">Mes</button></div>
+    <div class="calnav"><button class="icon" type="button" data-caln="-1" aria-label="Anterior">‹</button><button class="btn sm" type="button" data-caln="0">Hoy</button><button class="icon" type="button" data-caln="1" aria-label="Siguiente">›</button><span id="calRange"></span></div>
+    <button class="icon" type="button" id="calClose" aria-label="Cerrar" autofocus><svg class="ic" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8"/></svg></button>
+    <span class="meta calhint" id="calHint" style="margin:0">Arrastra una tarea a otro día para cambiar su vencimiento.</span></div>
+  <div class="calbody" id="calBody"></div>
+  <div class="caljpop" id="calJ" hidden role="dialog" aria-labelledby="calJTitle"><div class="hd"><h3 id="calJTitle"></h3><button class="btn sm" type="button" id="calJOpen">Abrir en bitácora</button><button class="icon" type="button" id="calJClose" aria-label="Cerrar vista de bitácora"><svg class="ic" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8"/></svg></button></div><div class="jed calj-body" id="calJBody"></div></div>
+</dialog>
+<dialog id="confirmDlg" aria-labelledby="confirmTitle">
+  <form method="dialog">
+    <h2 id="confirmTitle" style="font-family:var(--f-display);margin:0 0 8px;font-size:1.1rem">Confirmar eliminación</h2>
+    <p id="confirmMsg"></p>
+    <div style="display:flex;gap:8px;justify-content:flex-end"><button class="btn" value="no" id="confirmNo">Cancelar</button><button class="btn danger" value="yes" id="confirmYes">Eliminar</button></div>
+  </form>
+</dialog>
+<dialog id="weekDlg" class="weekdlg" aria-labelledby="wkTitle">
+  <div class="wkhead"><h2 id="wkTitle">Resumen semanal</h2>
+    <div class="wknav"><button class="icon" type="button" data-wk="-1" aria-label="Semana anterior">‹</button><span id="wkRange"></span><button class="icon" type="button" data-wk="1" aria-label="Semana siguiente">›</button><button class="btn sm" type="button" data-wk="0" id="wkNow">Esta semana</button></div>
+    <button class="icon" type="button" id="wkClose" aria-label="Cerrar" autofocus><svg class="ic" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8"/></svg></button></div>
+  <div id="wkBody"></div>
+  <div class="wkfoot"><label class="chk" style="margin:0"><input type="checkbox" id="wkJ"> Incluir el texto de la bitácora al copiar</label><span style="flex:1"></span><button class="btn sm" type="button" id="wkDl">Descargar .txt</button><button class="btn sm primary" type="button" id="wkCopy">Copiar resumen</button></div>
+</dialog>
+<div class="bakbar" id="bakBar" hidden role="status"><span id="bakMsg"></span><span style="display:flex;gap:6px;flex:0 0 auto;margin-left:auto"><button class="btn sm ghost" type="button" id="bakLater">Más tarde</button><button class="btn sm primary" type="button" id="bakGo">Respaldar ahora</button></span></div>
+<dialog id="cmdk" class="cmdk" aria-label="Buscador rápido">
+  <input type="text" id="ckIn" placeholder="Buscar tareas, días de la bitácora o comandos…" aria-label="Buscar" autocomplete="off" role="combobox" aria-controls="ckList" aria-expanded="true">
+  <div class="cklist" id="ckList" role="listbox"></div>
+  <div class="ckfoot">↑ ↓ para moverte · Enter para abrir · Esc para cerrar</div>
+</dialog>
+<div class="toast" id="toast" hidden></div>
+<script src="js/app.js"></script>
+</body>
+</html>

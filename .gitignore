@@ -1,0 +1,7 @@
+# Never upload your data: backups and exports stay on your computer
+*respaldo*.json
+*bitacora*.json
+backlog*.json
+*.bak
+.DS_Store
+Thumbs.db
