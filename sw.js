@@ -1,6 +1,6 @@
 // Service worker: keeps the app working without internet.
 // When you publish a new version, change VERSION so browsers pick up the new files.
-const VERSION = "v14";
+const VERSION = "v15";
 const CACHE = "tareas-" + VERSION;
 const FILES = [
   "./",
@@ -39,7 +39,13 @@ self.addEventListener("fetch", e => {
       .catch(() => caches.match("index.html")));
     return;
   }
-  // our own files: saved copy first
+  // code and styles: network first so a new version shows at once, saved copy when offline
+  if (url.origin === location.origin && /\.(js|css|webmanifest)$/.test(url.pathname)) {
+    e.respondWith(fetch(req).then(r => { if (r.ok) { const c = r.clone(); caches.open(CACHE).then(x => x.put(req, c)); } return r; })
+      .catch(() => caches.match(req, { ignoreSearch: true })));
+    return;
+  }
+  // images and icons: saved copy first
   if (url.origin === location.origin) {
     e.respondWith(caches.match(req).then(hit => hit || fetch(req).then(r => { if (r.ok) { const c = r.clone(); caches.open(CACHE).then(x => x.put(req, c)); } return r; })));
     return;

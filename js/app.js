@@ -1969,4 +1969,8 @@ render();
 
 // ---------- offline app (service worker) ----------
 if("serviceWorker" in navigator&&(location.protocol==="https:"||location.hostname==="localhost"||location.hostname==="127.0.0.1"))
-  addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));
+  addEventListener("load",()=>{
+    // when a new version takes over, reload once so the new files are used right away
+    const had=!!navigator.serviceWorker.controller; let done=false;
+    navigator.serviceWorker.addEventListener("controllerchange",()=>{ if(had&&!done){ done=true; location.reload(); } });
+    navigator.serviceWorker.register("sw.js",{updateViaCache:"none"}).then(r=>r.update()).catch(()=>{}); });
