@@ -354,6 +354,25 @@ dialog.weekdlg[open]{display:flex}
 .tladd{display:flex;flex-wrap:wrap;gap:6px;width:100%}
 .tladd input{flex:1 1 180px;min-width:0;font:inherit;font-size:.85rem;padding:5px 8px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--ink)}
 .tladd #tl-name{flex:0 1 160px}
+.taladd{grid-column:2/-1;display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-top:4px}
+.taladd input{flex:0 1 210px;min-width:0;font:inherit;font-size:.85rem;padding:5px 8px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--ink)}
+.taladd .lb{font-size:.76rem;color:var(--ink-3);display:inline-flex;align-items:center;gap:4px}
+.taladd .note{flex-basis:100%;font-size:.72rem;color:var(--ink-3)}
+.alchip{display:inline-flex;align-items:center;gap:3px;text-decoration:none;color:var(--ink-2);white-space:nowrap}
+.alchip:hover{color:var(--ink);text-decoration:underline}
+.alchip.soon{color:var(--warn);font-weight:600}
+.alchip.fired{opacity:.6}
+.albar{position:fixed;top:calc(12px + env(safe-area-inset-top,0px));left:50%;transform:translateX(-50%);z-index:60;width:min(520px,calc(100% - 32px));display:grid;gap:8px}
+.alitem{display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:var(--surface);color:var(--ink);border:1px solid color-mix(in srgb,var(--warn) 55%,var(--line));border-left:4px solid var(--warn);border-radius:12px;padding:10px 12px;box-shadow:0 10px 30px rgba(0,0,0,.25);animation:alin .25s ease-out}
+.alitem .alic{color:var(--warn);display:inline-flex;animation:alring 1s ease-in-out 3}
+.alitem .alic svg{width:20px;height:20px}
+.alitem .altx{flex:1 1 180px;min-width:0;display:grid}
+.alitem .altx b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.alitem .altx span{font-size:.76rem;color:var(--ink-3)}
+.alitem .alb{display:flex;gap:6px;flex-wrap:wrap}
+@keyframes alin{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:none}}
+@keyframes alring{0%,100%{transform:rotate(0)}20%{transform:rotate(14deg)}40%{transform:rotate(-12deg)}60%{transform:rotate(8deg)}80%{transform:rotate(-4deg)}}
+@media (prefers-reduced-motion:reduce){.alitem,.alitem .alic{animation:none}}
 .task .track{width:28px;height:28px}
 .check{flex:none}
 .empty{padding:22px 12px;text-align:center;color:var(--ink-2);border:1px dashed var(--line);border-radius:8px;font-size:.9rem}
@@ -616,6 +635,12 @@ dialog#settings{width:min(760px,calc(100% - 32px));padding:0;overflow:hidden}
 .jed.sans{font-family:"IBM Plex Sans",system-ui,sans-serif;font-size:.92rem}
 .jed font[size="2"]{font-size:.82em} .jed font[size="3"]{font-size:1em} .jed font[size="5"]{font-size:1.32em}
 .jed ul,.jed ol{margin:0;padding-left:2.2em} .jed p{margin:0}
+.jed ul.jchk{list-style:none;padding-left:1.75em}
+.jed ul.jchk>li{position:relative}
+.jed ul.jchk>li::before{content:"";position:absolute;left:-1.5em;top:.26em;width:1em;height:1em;box-sizing:border-box;border:1.6px solid color-mix(in srgb,var(--ink) 45%,transparent);border-radius:4px;background:var(--surface);cursor:pointer}
+.jed ul.jchk>li:hover::before{border-color:var(--accent)}
+.jed ul.jchk>li.ok::before{border-color:var(--accent);background:var(--accent) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M3.6 8.4l3 3 5.8-6.6' fill='none' stroke='white' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center/85% no-repeat}
+.jed ul.jchk>li.ok{color:var(--ink-3);text-decoration:line-through}
 .jed a.jlink{display:inline-flex;align-items:center;gap:4px;font-family:"IBM Plex Sans",system-ui,sans-serif;font-size:.8em;font-weight:600;line-height:1.35;padding:0 8px;border-radius:999px;border:1px solid color-mix(in srgb,var(--long) 40%,var(--line));background:color-mix(in srgb,var(--long) 10%,var(--surface));color:var(--long);text-decoration:none;cursor:pointer;vertical-align:1px;user-select:all}
 .jed a.jlink:hover{text-decoration:underline}
 .jed table.jtable{border-collapse:collapse;margin:6px 0;font-size:.92em;white-space:pre-wrap;min-width:40%}

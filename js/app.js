@@ -102,7 +102,7 @@ function tick(){
   if(lk){ $("#sub").setAttribute("role","button"); $("#sub").tabIndex=0; } else { $("#sub").removeAttribute("role"); $("#sub").removeAttribute("tabindex"); }
   $("#cyc").innerHTML=Array.from({length:every},(_,i)=>`<i class="${i<n?"on":""}"></i>`).join("");
   const label={focus:"Enfoque",short:"Pausa",long:"Pausa larga"}[T.mode];
-  document.title=(T.running||ms<durMs(T.mode))?`${txt} · ${label}`:"Tareas";
+  BASE_TITLE=(T.running||ms<durMs(T.mode))?`${txt} · ${label}`:"Tareas"; if(!alBlinkT) document.title=BASE_TITLE;
   updateFloat(txt,label,frac);
   if(typeof syncAmbient==="function") syncAmbient();
   if(T.track){ const t=taskById(T.track.id); if(t){ const v=clock(liveSpent(t)); document.querySelectorAll(`[data-spent="${t.id}"]`).forEach(el=>el.textContent=v); } }
@@ -131,11 +131,11 @@ let tq="";
 function hl(txt){ const e=esc(txt); if(!tq.trim()) return e; const ws=fold(tq.trim()).split(/\s+/).filter(Boolean); const f=fold(txt); const mk=new Array(txt.length).fill(false);
   if(f.length!==txt.length) return e; ws.forEach(w=>{ let i=0; while((i=f.indexOf(w,i))>=0){ for(let k=i;k<i+w.length;k++) mk[k]=true; i+=w.length; } });
   let out="",on=false; for(let i=0;i<txt.length;i++){ if(mk[i]!==on){ out+=mk[i]?'<mark class="hl">':'</mark>'; on=mk[i]; } out+=esc(txt[i]); } return out+(on?"</mark>":""); }
-let filter=(lsGet("pp-filter")||"open"), tagF=lsGet("pp-tag")||null, tagKey="", sortBy=(lsGet("pp-sort")||"manual"), editing=null, todoAdd=null, qnote=null, qnoteNew=null, linkAdd=null;
+let filter=(lsGet("pp-filter")||"open"), tagF=lsGet("pp-tag")||null, tagKey="", sortBy=(lsGet("pp-sort")||"manual"), editing=null, todoAdd=null, qnote=null, qnoteNew=null, linkAdd=null, alertAdd=null;
 // attached links: only http(s); a bare address gets https://
 const normUrl=v=>{ v=String(v||"").trim(); if(!v) return ""; if(!/^[a-z][a-z0-9+.-]*:/i.test(v)) v="https://"+v; try{ const u=new URL(v); return /^https?:$/.test(u.protocol)?u.href:""; }catch{ return ""; } };
 const linkName=(url,name)=>{ if(name) return name; try{ const u=new URL(url), last=decodeURIComponent(u.pathname.split("/").filter(Boolean).pop()||""); return last&&last.length<60?last:u.hostname.replace(/^www\./,""); }catch{ return url; } };
-const IC_P={"link": "<path d=\"M6.7 9.3a2.6 2.6 0 0 0 3.7 0l2.3-2.3a2.6 2.6 0 0 0-3.7-3.7l-.9.9M9.3 6.7a2.6 2.6 0 0 0-3.7 0L3.3 9a2.6 2.6 0 0 0 3.7 3.7l.9-.9\"/>", "table": "<rect x=\"2\" y=\"2.8\" width=\"12\" height=\"10.4\" rx=\"1.4\"/><path d=\"M2 6.3h12M2 9.8h12M6.2 2.8v10.4M10.2 2.8v10.4\"/>", "pause": "<path d=\"M5.4 3.4v9.2M10.6 3.4v9.2\"/>", "sun": "<circle cx=\"8\" cy=\"8\" r=\"2.9\"/><path d=\"M8 1.6v1.5M8 12.9v1.5M1.6 8h1.5M12.9 8h1.5M3.5 3.5l1 1M11.5 11.5l1 1M3.5 12.5l1-1M11.5 4.5l1-1\"/>", "moon": "<path d=\"M13.2 9.6A5.6 5.6 0 0 1 6.4 2.8a5.6 5.6 0 1 0 6.8 6.8z\"/>", "monitor": "<rect x=\"1.8\" y=\"2.6\" width=\"12.4\" height=\"8.6\" rx=\"1.3\"/><path d=\"M5.6 14h4.8M8 11.2V14\"/>", "cols": "<rect x=\"1.8\" y=\"2.6\" width=\"12.4\" height=\"10.8\" rx=\"1.3\"/><path d=\"M6.4 2.6v10.8\"/>", "rows": "<rect x=\"1.8\" y=\"2.6\" width=\"12.4\" height=\"10.8\" rx=\"1.3\"/><path d=\"M1.8 7.4h12.4\"/>", "timer": "<circle cx=\"8\" cy=\"9\" r=\"5.2\"/><path d=\"M8 9V6.4M6.3 1.8h3.4M12.1 4.7l1-1\"/>", "image": "<rect x=\"2\" y=\"3\" width=\"12\" height=\"10\" rx=\"1.6\"/><circle cx=\"5.7\" cy=\"6.4\" r=\"1.1\"/><path d=\"M2.4 11.6l3.6-3.3 2.6 2.3 2-1.7 3 2.6\"/>", "trash": "<path d=\"M2.8 4.4h10.4M6.4 4.4V2.8h3.2v1.6M4.3 4.4l.6 8.8h6.2l.6-8.8M6.9 7v4.2M9.1 7v4.2\"/>", "x": "<path d=\"M4 4l8 8M12 4l-8 8\"/>", "star": "<path d=\"M8 1.9l1.85 3.85 4.2.55-3.07 2.92.78 4.17L8 11.35 4.24 13.4l.78-4.17L1.95 6.3l4.2-.55z\"/>", "check": "<path d=\"M3 8.6l3.1 3L13 4.6\"/>", "zap": "<path d=\"M9 1.6L3.6 9H8l-1 5.4L12.4 7H8z\"/>", "cal": "<rect x=\"2\" y=\"3\" width=\"12\" height=\"11\" rx=\"1.6\"/><path d=\"M2 6.6h12M5.4 1.6v2.8M10.6 1.6v2.8\"/>", "hl": "<path d=\"M10 2.2l3.8 3.8-6.3 6.3H3.7V8.5z\"/><path d=\"M2.2 14.3h6\"/>", "go": "<path d=\"M5 11l6-6M6.2 5H11v4.8\"/>", "rep": "<path d=\"M2.6 7.2V6.4A2.2 2.2 0 0 1 4.8 4.2h8.2M11 2.2l2 2-2 2M13.4 8.8v.8a2.2 2.2 0 0 1-2.2 2.2H3M5 13.8l-2-2 2-2\"/>", "book": "<path d=\"M3 3.2A1.6 1.6 0 0 1 4.6 1.6H13v10.6H4.6A1.6 1.6 0 0 0 3 13.8z\"/><path d=\"M3 13.8a1.6 1.6 0 0 0 1.6 1.6H13v-3.2\"/>", "plus": "<path d=\"M8 3v10M3 8h10\"/>", "edit": "<path d=\"M10.4 2.6l3 3L6 13H3v-3z\"/>", "up": "<path d=\"M8 13V3.4M4 7l4-4 4 4\"/>", "side": "<rect x=\"2\" y=\"2.6\" width=\"12\" height=\"10.8\" rx=\"1.6\"/><path d=\"M9.6 2.6v10.8\"/>", "board": "<rect x=\"2\" y=\"2.6\" width=\"12\" height=\"10.8\" rx=\"1.6\"/><path d=\"M6 2.6v10.8M10 2.6v10.8\"/>", "gear": "<circle cx=\"8\" cy=\"8\" r=\"2.2\"/><path d=\"M8 1.6v1.8M8 12.6v1.8M1.6 8h1.8M12.6 8h1.8M3.5 3.5l1.3 1.3M11.2 11.2l1.3 1.3M3.5 12.5l1.3-1.3M11.2 4.8l1.3-1.3\"/>", "down": "<path d=\"M8 2.4v8M4.6 7.2L8 10.6l3.4-3.4M3 13.6h10\"/>", "upl": "<path d=\"M8 10.6v-8M4.6 5.8L8 2.4l3.4 3.4M3 13.6h10\"/>", "play": "<path d=\"M5 3.4v9.2L12.2 8z\"/>", "circle": "<circle cx=\"8\" cy=\"8\" r=\"5\"/>", "sum": "<path d=\"M12 3H4.2L8.6 8l-4.4 5H12\"/>", "alert": "<circle cx=\"8\" cy=\"8\" r=\"6\"/><path d=\"M8 4.8v3.6M8 11h.01\"/>", "head": "<path d=\"M2.6 10.4V8a5.4 5.4 0 0 1 10.8 0v2.4\"/><rect x=\"2.4\" y=\"9.4\" width=\"2.8\" height=\"4.2\" rx=\"1\"/><rect x=\"10.8\" y=\"9.4\" width=\"2.8\" height=\"4.2\" rx=\"1\"/>", "tv": "<rect x=\"2\" y=\"3.2\" width=\"12\" height=\"8.6\" rx=\"1.6\"/><path d=\"M5.8 14.2h4.4\"/>", "arr": "<path d=\"M3 8h9.6M9 4.4L12.6 8 9 11.6\"/>"};
+const IC_P={"bell": "<path d=\"M4 11.4V7.6a4 4 0 0 1 8 0v3.8l1.3 1.3H2.7zM6.5 14a1.6 1.6 0 0 0 3 0\"/>", "link": "<path d=\"M6.7 9.3a2.6 2.6 0 0 0 3.7 0l2.3-2.3a2.6 2.6 0 0 0-3.7-3.7l-.9.9M9.3 6.7a2.6 2.6 0 0 0-3.7 0L3.3 9a2.6 2.6 0 0 0 3.7 3.7l.9-.9\"/>", "table": "<rect x=\"2\" y=\"2.8\" width=\"12\" height=\"10.4\" rx=\"1.4\"/><path d=\"M2 6.3h12M2 9.8h12M6.2 2.8v10.4M10.2 2.8v10.4\"/>", "pause": "<path d=\"M5.4 3.4v9.2M10.6 3.4v9.2\"/>", "sun": "<circle cx=\"8\" cy=\"8\" r=\"2.9\"/><path d=\"M8 1.6v1.5M8 12.9v1.5M1.6 8h1.5M12.9 8h1.5M3.5 3.5l1 1M11.5 11.5l1 1M3.5 12.5l1-1M11.5 4.5l1-1\"/>", "moon": "<path d=\"M13.2 9.6A5.6 5.6 0 0 1 6.4 2.8a5.6 5.6 0 1 0 6.8 6.8z\"/>", "monitor": "<rect x=\"1.8\" y=\"2.6\" width=\"12.4\" height=\"8.6\" rx=\"1.3\"/><path d=\"M5.6 14h4.8M8 11.2V14\"/>", "cols": "<rect x=\"1.8\" y=\"2.6\" width=\"12.4\" height=\"10.8\" rx=\"1.3\"/><path d=\"M6.4 2.6v10.8\"/>", "rows": "<rect x=\"1.8\" y=\"2.6\" width=\"12.4\" height=\"10.8\" rx=\"1.3\"/><path d=\"M1.8 7.4h12.4\"/>", "timer": "<circle cx=\"8\" cy=\"9\" r=\"5.2\"/><path d=\"M8 9V6.4M6.3 1.8h3.4M12.1 4.7l1-1\"/>", "image": "<rect x=\"2\" y=\"3\" width=\"12\" height=\"10\" rx=\"1.6\"/><circle cx=\"5.7\" cy=\"6.4\" r=\"1.1\"/><path d=\"M2.4 11.6l3.6-3.3 2.6 2.3 2-1.7 3 2.6\"/>", "trash": "<path d=\"M2.8 4.4h10.4M6.4 4.4V2.8h3.2v1.6M4.3 4.4l.6 8.8h6.2l.6-8.8M6.9 7v4.2M9.1 7v4.2\"/>", "x": "<path d=\"M4 4l8 8M12 4l-8 8\"/>", "star": "<path d=\"M8 1.9l1.85 3.85 4.2.55-3.07 2.92.78 4.17L8 11.35 4.24 13.4l.78-4.17L1.95 6.3l4.2-.55z\"/>", "check": "<path d=\"M3 8.6l3.1 3L13 4.6\"/>", "zap": "<path d=\"M9 1.6L3.6 9H8l-1 5.4L12.4 7H8z\"/>", "cal": "<rect x=\"2\" y=\"3\" width=\"12\" height=\"11\" rx=\"1.6\"/><path d=\"M2 6.6h12M5.4 1.6v2.8M10.6 1.6v2.8\"/>", "hl": "<path d=\"M10 2.2l3.8 3.8-6.3 6.3H3.7V8.5z\"/><path d=\"M2.2 14.3h6\"/>", "go": "<path d=\"M5 11l6-6M6.2 5H11v4.8\"/>", "rep": "<path d=\"M2.6 7.2V6.4A2.2 2.2 0 0 1 4.8 4.2h8.2M11 2.2l2 2-2 2M13.4 8.8v.8a2.2 2.2 0 0 1-2.2 2.2H3M5 13.8l-2-2 2-2\"/>", "book": "<path d=\"M3 3.2A1.6 1.6 0 0 1 4.6 1.6H13v10.6H4.6A1.6 1.6 0 0 0 3 13.8z\"/><path d=\"M3 13.8a1.6 1.6 0 0 0 1.6 1.6H13v-3.2\"/>", "plus": "<path d=\"M8 3v10M3 8h10\"/>", "edit": "<path d=\"M10.4 2.6l3 3L6 13H3v-3z\"/>", "up": "<path d=\"M8 13V3.4M4 7l4-4 4 4\"/>", "side": "<rect x=\"2\" y=\"2.6\" width=\"12\" height=\"10.8\" rx=\"1.6\"/><path d=\"M9.6 2.6v10.8\"/>", "board": "<rect x=\"2\" y=\"2.6\" width=\"12\" height=\"10.8\" rx=\"1.6\"/><path d=\"M6 2.6v10.8M10 2.6v10.8\"/>", "gear": "<circle cx=\"8\" cy=\"8\" r=\"2.2\"/><path d=\"M8 1.6v1.8M8 12.6v1.8M1.6 8h1.8M12.6 8h1.8M3.5 3.5l1.3 1.3M11.2 11.2l1.3 1.3M3.5 12.5l1.3-1.3M11.2 4.8l1.3-1.3\"/>", "down": "<path d=\"M8 2.4v8M4.6 7.2L8 10.6l3.4-3.4M3 13.6h10\"/>", "upl": "<path d=\"M8 10.6v-8M4.6 5.8L8 2.4l3.4 3.4M3 13.6h10\"/>", "play": "<path d=\"M5 3.4v9.2L12.2 8z\"/>", "circle": "<circle cx=\"8\" cy=\"8\" r=\"5\"/>", "sum": "<path d=\"M12 3H4.2L8.6 8l-4.4 5H12\"/>", "alert": "<circle cx=\"8\" cy=\"8\" r=\"6\"/><path d=\"M8 4.8v3.6M8 11h.01\"/>", "head": "<path d=\"M2.6 10.4V8a5.4 5.4 0 0 1 10.8 0v2.4\"/><rect x=\"2.4\" y=\"9.4\" width=\"2.8\" height=\"4.2\" rx=\"1\"/><rect x=\"10.8\" y=\"9.4\" width=\"2.8\" height=\"4.2\" rx=\"1\"/>", "tv": "<rect x=\"2\" y=\"3.2\" width=\"12\" height=\"8.6\" rx=\"1.6\"/><path d=\"M5.8 14.2h4.4\"/>", "arr": "<path d=\"M3 8h9.6M9 4.4L12.6 8 9 11.6\"/>"};
 const ic=(n,c)=>`<svg class="ic${c?" "+c:""}" viewBox="0 0 16 16" aria-hidden="true">${IC_P[n]}</svg>`;
 const ICON_LIST='<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M6 4h8M6 8h8M6 12h8"/><circle cx="2.6" cy="4" r=".9" fill="currentColor" stroke="none"/><circle cx="2.6" cy="8" r=".9" fill="currentColor" stroke="none"/><circle cx="2.6" cy="12" r=".9" fill="currentColor" stroke="none"/></svg>';
 const ICON_UNDO='<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3.2 6.2A5.2 5.2 0 1 1 3 9.5"/><path d="M3 2.6v3.8h3.8"/></svg>';
@@ -205,6 +205,8 @@ function recNextDue(rec,base){
 function recSpawn(t){
   const n={id:uid(),title:t.title,tag:t.tag||"",status:"todo",crit:t.crit||"media",due:recNextDue(t.rec,t.due),rec:t.rec,est:1,pomos:0,spent:0,completed:false,
     createdAt:Date.now(),order:t.order??t.createdAt,todos:(t.todos||[]).map(x=>({...x,id:uid(),done:false})),todoMin:t.todoMin};
+  if(t.alert&&t.due){ const [y,m,d]=t.due.split("-").map(Number), [y2,m2,d2]=n.due.split("-").map(Number), a=new Date(t.alert);
+    a.setDate(a.getDate()+Math.round((new Date(y2,m2-1,d2)-new Date(y,m-1,d))/864e5)); n.alert=a.getTime(); }
   S.tasks.push(n); t.recNext=n.id;
   setTimeout(()=>toast(`Se creó la próxima: ${dueInfo(n.due).txt.toLowerCase()}`),40);
 }
@@ -246,18 +248,19 @@ function render(){ applyLook();
     due:(a,b)=>((a.due||"9999")<(b.due||"9999")?-1:(a.due||"9999")>(b.due||"9999")?1:0)||(CR[a.crit||"media"]-CR[b.crit||"media"])||ord(a)-ord(b)}[sortBy]||((a,b)=>ord(a)-ord(b));
   list.sort((a,b)=>(a.completed-b.completed)||cmp(a,b));
   $("#sort").value=sortBy;
-  const ae=document.activeElement, editingNow=ae&&ae.closest&&ae.closest(".edit,.todos,.qnote,.tladd")&&ae.matches("input[type=text],input[type=date],input[type=number],select,textarea");
+  const ae=document.activeElement, editingNow=ae&&ae.closest&&ae.closest(".edit,.todos,.qnote,.tladd,.taladd")&&ae.matches("input[type=text],input[type=date],input[type=datetime-local],input[type=number],select,textarea");
   if(!editingNow&&!dragTodo) $("#tasks").innerHTML=list.length?list.map(t=>{
     const p=t.pomos||0, over=p>t.est, crit=t.crit||"media", trk=T.track&&T.track.id===t.id;
     const nN=S.notes.filter(n=>n.task===t.id&&!n.done).length, du=dueInfo(t.due), todos=t.todos||[], tdDone=todos.filter(x=>x.done).length;
     return `<li class="task ${t.completed?(t.status==="cancelled"?"cancelled":"done"):""} ${trk?"tracking":""} ${!trk&&t.id===S.activeTaskId?"active":""}" data-id="${t.id}">
       ${t.completed?"<span style=\"width:28px\"></span>":`<button class="btn track ${trk?"on":""}" type="button" data-act="track" aria-label="${trk?"Detener":"Iniciar"}" title="${trk?"Detener":"Iniciar"}">${trk?ICON_STOP:ICON_PLAY}</button>`}
       <div style="min-width:0"><div class="trow"><button class="star ${t.star?"on":""}" type="button" data-act="star" aria-pressed="${!!t.star}" aria-label="${t.star?"Quitar de Hoy":"Marcar para hoy"}" title="${t.star?"Quitar de Hoy":"Marcar para hoy"}">${ic("star",t.star?"fill":"")}</button><div class="t" data-act="edit" title="Editar tarea">${hl(t.title)}</div></div>
-        <div class="meta"><label class="st st-${t.status||"todo"}" title="Estado">${ST_ICON[t.status||"todo"]}<select data-status aria-label="Estado">${statusOpts(t.status||"todo")}</select></label>${sig(crit)}${t.tag?`<span class="tag">${esc(t.tag)}</span>`:""}${du&&!t.completed?`<span class="due ${du.cls}">${du.txt}</span>`:""}${t.rec?`<span class="rec" title="Se repite: ${REC[t.rec]}. Al cerrarla se crea la siguiente.">${ic("rep")} ${REC[t.rec]}</span>`:""}${t.jday?`<button class="nlink" type="button" data-act="jday" title="Ver la línea de la bitácora donde nació esta tarea">Bitácora ${esc(jLabel(t.jday))}</button>`:""}${liveSpent(t)>0||trk?`<span class="spent" data-spent="${t.id}" title="Tiempo invertido en la tarea">${clock(liveSpent(t))}</span>`:""}${nN?`<button class="nlink" type="button" data-act="qnote" title="Ver notas de la tarea">${nN} nota${nN>1?"s":""}</button>`:""}${todos.length?(t.completed?`<span class="ico has-todo" title="${todos.length} to-do (${tdDone} hecho${tdDone!==1?"s":""})" aria-label="Tiene to-do">${ICON_LIST}</span>`
+        <div class="meta"><label class="st st-${t.status||"todo"}" title="Estado">${ST_ICON[t.status||"todo"]}<select data-status aria-label="Estado">${statusOpts(t.status||"todo")}</select></label>${sig(crit)}${t.tag?`<span class="tag">${esc(t.tag)}</span>`:""}${du&&!t.completed?`<span class="due ${du.cls}">${du.txt}</span>`:""}${t.alert&&!t.completed?alChip(t):""}${t.rec?`<span class="rec" title="Se repite: ${REC[t.rec]}. Al cerrarla se crea la siguiente.">${ic("rep")} ${REC[t.rec]}</span>`:""}${t.jday?`<button class="nlink" type="button" data-act="jday" title="Ver la línea de la bitácora donde nació esta tarea">Bitácora ${esc(jLabel(t.jday))}</button>`:""}${liveSpent(t)>0||trk?`<span class="spent" data-spent="${t.id}" title="Tiempo invertido en la tarea">${clock(liveSpent(t))}</span>`:""}${nN?`<button class="nlink" type="button" data-act="qnote" title="Ver notas de la tarea">${nN} nota${nN>1?"s":""}</button>`:""}${todos.length?(t.completed?`<span class="ico has-todo" title="${todos.length} to-do (${tdDone} hecho${tdDone!==1?"s":""})" aria-label="Tiene to-do">${ICON_LIST}</span>`
   :`<button class="ico has-todo tdtog" type="button" data-act="todo-toggle" aria-expanded="${!t.todoMin}" title="${t.todoMin?"Mostrar":"Ocultar"} la lista to-do · ${tdDone} de ${todos.length} hechos">${ICON_LIST} ${tdDone}/${todos.length}<span class="car" aria-hidden="true">${t.todoMin?"▸":"▾"}</span></button>`):""}</div>
       <div class="acts">
         ${t.completed?"":`<button class="icon ico" type="button" data-act="todo" aria-label="Agregar to-do" title="Agregar to-do">${ICON_LIST}</button>
-        <button class="icon ico" type="button" data-act="qnote" aria-label="Agregar nota" title="Agregar nota">${ICON_NOTE}</button>`}
+        <button class="icon ico" type="button" data-act="qnote" aria-label="Agregar nota" title="Agregar nota">${ICON_NOTE}</button>
+        <button class="icon ico" type="button" data-act="alert" aria-label="Alerta" title="${t.alert?"Cambiar la alerta":"Agregar una alerta"}">${ic("bell")}</button>`}
         <button class="icon ico" type="button" data-act="link" aria-label="Adjuntar link" title="Adjuntar link">${ic("link")}</button>
         <button class="icon" type="button" data-act="edit" aria-label="Editar" title="Editar">${ic("edit")}</button>
         <button class="icon" type="button" data-act="up" aria-label="Subir" title="Subir">${ic("up")}</button>
@@ -266,6 +269,7 @@ function render(){ applyLook();
       <button class="check" type="button" data-act="done" aria-label="${t.completed?"Reabrir tarea":"Marcar hecha"}" title="${t.completed?"Reabrir tarea":"Marcar como hecha"}">${ic(t.completed&&t.status==="cancelled"?"x":"check")}</button>
       ${(t.links||[]).length||linkAdd===t.id?`<div class="tlinks">${(t.links||[]).map(l=>`<span class="tlink" data-link="${l.id}"><a href="${esc(l.url)}" target="_blank" rel="noopener noreferrer" title="${esc(l.url)}">${ic("link")}${esc(l.name)}</a><button class="x" type="button" data-act="link-del" aria-label="Quitar link ${esc(l.name)}" title="Quitar link">${ic("x")}</button></span>`).join("")}
         ${linkAdd===t.id?`<div class="tladd"><input type="url" id="tl-url" placeholder="Pega el link (OneDrive, SharePoint, web…)" aria-label="Link"><input type="text" id="tl-name" placeholder="Nombre (opcional)" aria-label="Nombre del link"><button class="btn sm" type="button" data-act="link-cancel">Cancelar</button><button class="btn sm primary" type="button" data-act="link-save">Adjuntar</button></div>`:""}</div>`:""}
+      ${alertAdd===t.id&&!t.completed?alForm(t):""}
       ${editing===t.id?`<div class="edit">
         <label class="fld wide"><span>Tarea</span><input type="text" id="e-title" value="${esc(t.title)}"></label>
         <label class="fld"><span>Proyecto</span><input type="text" id="e-tag" value="${esc(t.tag||"")}" list="tags"></label>
@@ -273,6 +277,7 @@ function render(){ applyLook();
         <label class="fld"><span>Criticidad</span><select id="e-crit">${["alta","media","baja"].map(c=>`<option value="${c}" ${c===crit?"selected":""}>${{alta:"Alta",media:"Media",baja:"Baja"}[c]}</option>`).join("")}</select></label>
         <label class="fld"><span>Vence</span><input type="date" id="e-due" value="${esc(t.due||"")}"></label>
         <label class="fld"><span>Repetir</span><select id="e-rec">${Object.entries(REC).map(([k,v])=>`<option value="${k}" ${k===(t.rec||"")?"selected":""}>${v}</option>`).join("")}</select></label>
+        <label class="fld"><span>Alerta</span><input type="datetime-local" id="e-alert" value="${t.alert?alLocal(t.alert):""}"></label>
         <div class="wide" style="display:flex;gap:8px;justify-content:flex-end"><button class="btn sm" type="button" data-act="cancel">Cancelar</button><button class="btn sm primary" type="button" data-act="save">Guardar</button></div>
       </div>`:""}
       ${!t.completed&&(todoAdd===t.id||(todos.length&&!t.todoMin))?`<div class="todos">
@@ -377,6 +382,11 @@ $("#tasks").addEventListener("click",e=>{
   if(a==="todo-toggle"){ t.todoMin=!t.todoMin; if(t.todoMin&&todoAdd===id) todoAdd=null; commit(); return; }
   if(a==="link"){ linkAdd=linkAdd===id?null:id; render(); const el=$("#tl-url"); el&&el.focus(); return; }
   if(a==="link-cancel"){ linkAdd=null; document.activeElement.blur(); render(); return; }
+  if(a==="alert"){ alertAdd=alertAdd===id?null:id; render(); const el=$("#ta-at"); el&&el.focus(); return; }
+  if(a==="alert-cancel"){ alertAdd=null; document.activeElement.blur(); render(); return; }
+  if(a==="alert-quick"){ alSave(t,alQuick(b.dataset.q,t)); return; }
+  if(a==="alert-save"){ const v=$("#ta-at").value; if(!v){ toast("Elige el día y la hora de la alerta."); $("#ta-at").focus(); return; } alSave(t,new Date(v).getTime()); return; }
+  if(a==="alert-del"){ alertAdd=null; alSet(t,null); document.activeElement.blur(); commit(); toast("Alerta quitada"); return; }
   if(a==="link-save"){ linkSave(t); return; }
   if(a==="link-del"){ const lid=b.closest("[data-link]").dataset.link, l=(t.links||[]).find(x=>x.id===lid); t.links=(t.links||[]).filter(x=>x.id!==lid); commit(); if(l) toast(`Link "${l.name}" quitado`); return; }
   if(a==="todo-hide"){ t.todoMin=true; if(todoAdd===id) todoAdd=null; commit(); return; }
@@ -398,7 +408,7 @@ $("#tasks").addEventListener("click",e=>{
   if(a==="track"){ if(T.track&&T.track.id===id){ stopTrack(); } else { startTrack(id); return; } }
   else if(a==="edit"){ editing=editing===id?null:id; render(); if(editing){ const el=$("#e-title"); el&&el.focus(); } return; }
   else if(a==="cancel"){ editing=null; document.activeElement.blur(); render(); return; }
-  else if(a==="save"){ const ti=$("#e-title").value.trim(); if(ti) t.title=ti; t.tag=$("#e-tag").value.trim(); t.crit=$("#e-crit").value; setStatus(t,$("#e-status").value); t.due=$("#e-due").value||null; t.rec=$("#e-rec").value||null; editing=null; document.activeElement.blur(); toast("Tarea actualizada"); }
+  else if(a==="save"){ const ti=$("#e-title").value.trim(); if(ti) t.title=ti; t.tag=$("#e-tag").value.trim(); t.crit=$("#e-crit").value; setStatus(t,$("#e-status").value); t.due=$("#e-due").value||null; t.rec=$("#e-rec").value||null; { const av=$("#e-alert").value, ms=av?new Date(av).getTime():null; if((ms||null)!==(t.alert||null)) alSet(t,ms); } editing=null; document.activeElement.blur(); toast("Tarea actualizada"); }
   else if(a==="done"){ setStatus(t,t.completed?"todo":"done"); }
   else if(a==="jday"){ jGoTask(t); return; }
   else if(a==="star"){ t.star=!t.star; toast(t.star?"Agregada a ★ Hoy":"Quitada de ★ Hoy"); }
@@ -537,7 +547,7 @@ $("#setNav").addEventListener("keydown",e=>{ const k=e.key; if(!["ArrowDown","Ar
 $("#setClose").addEventListener("click",()=>dlg.close("cancel"));
 $("#openSettings").addEventListener("click",()=>{ const s=S.settings;
   $("#cFocus").value=s.focus;$("#cShort").value=s.short;$("#cLong").value=s.long;$("#cEvery").value=s.longEvery;$("#cGoal").value=s.goal;
-  $("#cAutoB").checked=s.autoBreaks;$("#cAutoF").checked=s.autoFocus;$("#cSound").checked=s.sound;$("#cFocusMode").checked=s.focusMode!==false; renderBgPick(); setSec(lsGet("pp-setsec")||"timer"); dlg.returnValue=""; dlg.showModal(); });
+  $("#cAutoB").checked=s.autoBreaks;$("#cAutoF").checked=s.autoFocus;$("#cSound").checked=s.sound;$("#cFocusMode").checked=s.focusMode!==false; $("#cAlSound").checked=s.alertSound!==false; alPermUI(); renderBgPick(); setSec(lsGet("pp-setsec")||"timer"); dlg.returnValue=""; dlg.showModal(); });
 dlg.addEventListener("close",()=>{ if(dlg.returnValue!=="ok") return;
   const n=(id,min,max,d)=>{const v=Math.round(+$(id).value);return v>=min&&v<=max?v:d};
   const s=S.settings, old={...s};
@@ -934,6 +944,8 @@ function jClean(html){
     if(c.tagName==="SPAN"&&c.classList.contains("jtag")){ const t=jTagName(c.getAttribute("data-tag")||c.textContent.replace(/^#/,""));
       [...c.attributes].forEach(a=>c.removeAttribute(a.name)); if(!t){ c.replaceWith(...c.childNodes); return; }
       jTagEl(t,c); return; }
+    if(c.tagName==="UL"&&c.classList.contains("jchk")){ [...c.attributes].forEach(a=>c.removeAttribute(a.name)); c.className="jchk"; return; }
+    if(c.tagName==="LI"&&c.classList.contains("ok")&&c.parentElement&&c.parentElement.classList.contains("jchk")){ [...c.attributes].forEach(a=>c.removeAttribute(a.name)); c.className="ok"; return; }
     if(/^(TABLE|THEAD|TBODY|TR|TH|TD)$/.test(c.tagName)){ const wide=c.classList.contains("wide"); [...c.attributes].forEach(a=>c.removeAttribute(a.name)); if(c.tagName==="TABLE") c.className="jtable"+(wide?" wide":""); if((c.tagName==="TD"||c.tagName==="TH")&&!c.childNodes.length) c.appendChild(document.createElement("br")); return; }
     if(c.tagName==="A"&&c.classList.contains("jlink")){ const u=normUrl(c.getAttribute("href")), nm=c.textContent.replace(/^📎\s*/,"").trim(); [...c.attributes].forEach(a=>c.removeAttribute(a.name)); if(!u){ c.replaceWith(document.createTextNode(nm)); return; }
       c.className="jlink"; c.setAttribute("href",u); c.setAttribute("target","_blank"); c.setAttribute("rel","noopener noreferrer"); c.setAttribute("contenteditable","false"); c.setAttribute("title",u); c.textContent="📎 "+(nm||linkName(u)); return; }
@@ -961,7 +973,7 @@ function jText(src){
     if(tg==="TABLE"){ nl(); c.querySelectorAll("tr").forEach(tr=>{ out+=[...tr.children].map(td=>jPreText(td).replace(/\s*\n\s*/g," ").trim()).join("\t")+"\n"; }); return; }
     const block=tg==="DIV"||tg==="P"||tg==="LI"||tg==="UL"||tg==="OL";
     if(block) nl();
-    if(tg==="LI"){ const p=c.parentElement; out+=p&&p.tagName==="OL"?([...p.children].indexOf(c)+1)+". ":"• "; }
+    if(tg==="LI"){ const p=c.parentElement; out+=p&&p.tagName==="OL"?([...p.children].indexOf(c)+1)+". ":p&&p.classList.contains("jchk")?(c.classList.contains("ok")?"[x] ":"[ ] "):"• "; }
     walk(c);
     if(block) nl();
   }); })(root);
@@ -1206,7 +1218,42 @@ function jColor(cmd,val){ if(document.activeElement!==jEd) jEd.focus();
     if(el.getAttribute("style")==="") el.removeAttribute("style");
     if((el.tagName==="SPAN"||el.tagName==="FONT")&&!el.attributes.length) el.replaceWith(...el.childNodes); });
   jEdited=true; jEd.dispatchEvent(new Event("input")); }
-function jToolState(){ ["bold","italic","underline","strikeThrough","insertUnorderedList","insertOrderedList"].forEach(c=>{ const b=$(`#jTools [data-cmd="${c}"]`); let on=false; try{ on=document.queryCommandState(c); }catch{} b&&b.setAttribute("aria-pressed",String(!!on)); }); }
+function jToolState(){ ["bold","italic","underline","strikeThrough","insertUnorderedList","insertOrderedList"].forEach(c=>{ const b=$(`#jTools [data-cmd="${c}"]`); let on=false; try{ on=document.queryCommandState(c); }catch{} b&&b.setAttribute("aria-pressed",String(!!on)); });
+  const td=!!jTodoUl(); $("#jTodoBtn").setAttribute("aria-pressed",String(td)); if(td) $('#jTools [data-cmd="insertUnorderedList"]').setAttribute("aria-pressed","false"); }
+// ---------- to-do lists: ul.jchk, checked items carry class ok ----------
+const jElOf=n=>n&&(n.nodeType===1?n:n.parentElement);
+function jTodoUl(){ const sel=getSelection(); if(!sel.rangeCount) return null; const u=jElOf(sel.anchorNode); const ul=u&&u.closest("ul.jchk"); return ul&&jEd.contains(ul)?ul:null; }
+function jTodo(){
+  if(document.activeElement!==jEd) jEd.focus();
+  const sel=getSelection(); if(!sel.rangeCount||!jEd.contains(sel.anchorNode)) jCaretIn(jEd,true);
+  const r=getSelection().getRangeAt(0); if(jPreOf(r.startContainer)||jCellOf(r.startContainer)){ toast("Pon el cursor fuera de la tabla o del bloque de código."); return; }
+  const near=jElOf(r.startContainer).closest("ul,ol"), list=near&&jEd.contains(near)?near:null;
+  if(list&&list.tagName==="UL"&&list.classList.contains("jchk")) document.execCommand("insertUnorderedList");
+  else { if(!list||list.tagName!=="UL") document.execCommand("insertUnorderedList");
+    const u=jElOf(getSelection().anchorNode), ul=u&&u.closest("ul"); if(ul&&jEd.contains(ul)) ul.classList.add("jchk"); }
+  jSpanFix(); jEdited=true; jEd.dispatchEvent(new Event("input")); jToolState(); }
+// Chrome leaves inline font-size/color spans when it unwraps a list; keep only palette colors
+function jSpanFix(){ jEd.querySelectorAll("span[style]").forEach(sp=>{ const bg=J_HL.has(jRgb(sp.style.backgroundColor))?sp.style.backgroundColor:"", fg=J_TC.has(jRgb(sp.style.color))?sp.style.color:"";
+  sp.removeAttribute("style"); if(bg) sp.style.backgroundColor=bg; if(fg) sp.style.color=fg; if(!sp.attributes.length) sp.replaceWith(...sp.childNodes); }); }
+$("#jTodoBtn").addEventListener("click",jTodo);
+// a click on the box (left of the item) checks or unchecks it
+jEd.addEventListener("mousedown",e=>{ const li=e.target.closest&&e.target.closest("ul.jchk>li"); if(!li||!jEd.contains(li)) return;
+  if(e.clientX>=li.getBoundingClientRect().left) return; e.preventDefault(); li.classList.toggle("ok"); jEdited=true; jEd.dispatchEvent(new Event("input")); });
+jEd.addEventListener("keydown",e=>{
+  if((e.ctrlKey||e.metaKey)&&e.shiftKey&&(e.key==="X"||e.key==="x")){ e.preventDefault(); document.execCommand("strikeThrough"); jToolState(); return; }
+  const sel=getSelection(); if(!sel.rangeCount||!sel.isCollapsed) return; const r=sel.getRangeAt(0);
+  if(e.key===" "&&!e.ctrlKey&&!e.metaKey&&!jPreOf(r.startContainer)&&!jCellOf(r.startContainer)&&!jElOf(r.startContainer).closest("li")){ // [] + space starts a to-do list
+    const t=r.startContainer; if(t.nodeType!==3) return; const before=t.data.slice(0,r.startOffset), ls=before.lastIndexOf("\n")+1;
+    if(!/^\s*\[ ?\]$/.test(before.slice(ls))) return;
+    const blk=jElOf(t), lineOnly=blk!==jEd&&blk.textContent===before;
+    e.preventDefault(); t.deleteData(ls,r.startOffset-ls);
+    if(lineOnly&&!blk.textContent){ blk.textContent=""; blk.appendChild(document.createElement("br")); jCaretIn(blk,false); }
+    else { const rr=document.createRange(); rr.setStart(t,ls); rr.collapse(true); sel.removeAllRanges(); sel.addRange(rr); }
+    jTodo(); return; }
+  if(e.key==="Tab") setTimeout(()=>jEd.querySelectorAll("ul.jchk ul").forEach(u=>u.classList.add("jchk")),0);
+  const li=jElOf(r.startContainer).closest("ul.jchk>li"); if(!li||!jEd.contains(li)) return;
+  if(e.key==="Enter"&&!e.shiftKey) setTimeout(()=>{ const n=jElOf(getSelection().anchorNode), x=n&&n.closest("li"); if(x&&x!==li&&x.parentElement.classList.contains("jchk")) x.classList.remove("ok"); },0);
+});
 document.addEventListener("selectionchange",()=>{ if(document.activeElement===jEd) jToolState(); });
 function jMono(on){ jEd.classList.toggle("sans",!on); $("#jFont").setAttribute("aria-pressed",String(on)); $("#jFont").textContent=on?"Mono":"Normal"; $("#jFont").title=on?"Letra monoespaciada, como Notepad++ (toca para letra normal)":"Letra normal (toca para monoespaciada)"; }
 jMono(lsGet("pp-jmono")!==false);
@@ -1848,6 +1895,73 @@ const BG_DEF="montana-retro";
 function renderBgPick(){ const id0=S.settings.bg||BG_DEF, id=BGS.some(b=>b.id===id0)?id0:BGS[0].id;
   $("#bgPick").innerHTML=BGS.map(b=>`<button type="button" class="bgopt" data-bg="${b.id}" aria-pressed="${b.id===id}" title="${esc(b.name)}"><img src="${b.src}" alt=""><span>${esc(b.name)}</span></button>`).join(""); }
 $("#bgPick").addEventListener("click",e=>{ const b=e.target.closest("[data-bg]"); if(!b) return; S.settings.bg=b.dataset.bg; renderBgPick(); commit(); });
+
+// ---------- task alerts: notification, sound and blinking tab title while the app is open ----------
+var BASE_TITLE="Tareas", alBlinkT=null, ALQ=[];
+function p2(n){ return String(n).padStart(2,"0"); }
+function alLocal(ms){ const d=new Date(ms); return `${d.getFullYear()}-${p2(d.getMonth()+1)}-${p2(d.getDate())}T${p2(d.getHours())}:${p2(d.getMinutes())}`; }
+function alFmt(ms){ const d=new Date(ms), k=dayKey(ms), today=dayKey(Date.now()), tm=new Date(); tm.setDate(tm.getDate()+1);
+  const hh=`${d.getHours()}:${p2(d.getMinutes())}`;
+  if(k===today) return "hoy "+hh; if(k===dayKey(tm.getTime())) return "mañana "+hh;
+  return d.toLocaleDateString("es",{weekday:"short",day:"numeric",month:"short"})+(d.getFullYear()!==new Date().getFullYear()?" "+d.getFullYear():"")+" "+hh; }
+function alQuick(q,t){ const d=new Date(); d.setSeconds(0,0);
+  if(q==="15") d.setMinutes(d.getMinutes()+15); else if(q==="60") d.setMinutes(d.getMinutes()+60);
+  else if(q==="tom"){ d.setDate(d.getDate()+1); d.setHours(9,0); }
+  else if(q==="due"&&t.due){ const [y,m,dd]=t.due.split("-").map(Number); return new Date(y,m-1,dd,9,0).getTime(); }
+  return d.getTime(); }
+function alNtfOn(){ return "Notification" in window&&Notification.permission==="granted"; }
+function alChip(t){ const left=t.alert-Date.now();
+  return `<button class="nlink alchip ${t.alertFired?"fired":left<36e5?"soon":""}" type="button" data-act="alert" title="${t.alertFired?"Alerta ya avisada":"Alerta"}: ${esc(alFmt(t.alert))}. Clic para cambiarla.">${ic("bell")}${esc(alFmt(t.alert))}</button>`; }
+function alForm(t){ const def=t.alert&&!t.alertFired?t.alert:(()=>{ const d=new Date(Date.now()+36e5); d.setMinutes(Math.ceil(d.getMinutes()/15)*15,0,0); return d.getTime(); })();
+  const dueOk=t.due&&new Date(...t.due.split("-").map((x,i)=>i===1?x-1:+x),9,0).getTime()>Date.now();
+  return `<div class="taladd"><span class="lb">${ic("bell")} Avisarme</span>
+    <button class="btn sm" type="button" data-act="alert-quick" data-q="15">En 15 min</button><button class="btn sm" type="button" data-act="alert-quick" data-q="60">En 1 hora</button><button class="btn sm" type="button" data-act="alert-quick" data-q="tom">Mañana 9:00</button>${dueOk?`<button class="btn sm" type="button" data-act="alert-quick" data-q="due">Al vencer, 9:00</button>`:""}
+    <input type="datetime-local" id="ta-at" value="${alLocal(def)}" aria-label="Día y hora de la alerta">
+    ${t.alert?`<button class="btn sm ghost danger" type="button" data-act="alert-del">Quitar</button>`:""}<button class="btn sm" type="button" data-act="alert-cancel">Cancelar</button><button class="btn sm primary" type="button" data-act="alert-save">Guardar</button>
+    ${alNtfOn()?"":`<span class="note">${!("Notification" in window)||Notification.permission==="denied"?"Las notificaciones del sistema no están disponibles aquí: el aviso aparecerá dentro del panel, con sonido y en el título de la pestaña.":"Al guardar, el navegador te pedirá permiso para mostrar notificaciones aunque la ventana esté minimizada."}</span>`}</div>`; }
+function alAskPerm(){ try{ if("Notification" in window&&Notification.permission==="default") Promise.resolve(Notification.requestPermission()).then(alPermUI).catch(()=>{}); }catch{} }
+function alSet(t,ms){ if(ms){ t.alert=ms; t.alertFired=false; alAskPerm(); } else { delete t.alert; delete t.alertFired; } alDrop(t.id); }
+function alSave(t,ms){ if(ms<=Date.now()-6e4){ toast("Esa hora ya pasó. Elige una hora futura."); return; } alertAdd=null; alSet(t,ms); document.activeElement.blur(); commit(); toast("Te avisaré "+alFmt(ms)); }
+function alSound(){ if(S.settings.alertSound===false) return; ensureAudio(); if(!AC) return;
+  [0,1].forEach(rep=>[988,1319,1568].forEach((f,i)=>{ const o=AC.createOscillator(),g=AC.createGain(),t=AC.currentTime+rep*.9+i*.14;
+    o.type="triangle"; o.frequency.value=f; g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(.22,t+.015); g.gain.exponentialRampToValueAtTime(.001,t+.5);
+    o.connect(g).connect(AC.destination); o.start(t); o.stop(t+.55); })); }
+function alNotify(t){ if(!alNtfOn()) return;
+  const title="⏰ "+t.title, o={body:(t.tag?t.tag+" · ":"")+"Alerta de "+alFmt(t.alert),tag:"pp-al-"+t.id,requireInteraction:true,data:{id:t.id}};
+  const click=()=>{ try{ window.focus(); }catch{} if(taskById(t.id)){ goToTask(t.id); alDrop(t.id); } };
+  try{ const n=new Notification(title,o); n.onclick=()=>{ n.close(); click(); }; }
+  catch{ try{ navigator.serviceWorker&&navigator.serviceWorker.ready.then(r=>r.showNotification(title,o)).catch(()=>{}); }catch{} } }
+function alBlink(on){ clearInterval(alBlinkT); alBlinkT=null;
+  if(on&&ALQ.length){ let k=0; alBlinkT=setInterval(()=>{ const t=taskById(ALQ[ALQ.length-1]); document.title=(k++%2)?BASE_TITLE:"⏰ "+(t?t.title:"Alerta"); },1000); }
+  else document.title=BASE_TITLE; }
+function alBar(){ ALQ=ALQ.filter(id=>{ const t=taskById(id); return t&&!t.completed; }); const el=$("#alBar");
+  el.hidden=!ALQ.length; el.innerHTML=ALQ.map(id=>{ const t=taskById(id), late=Date.now()-t.alert>5*6e4;
+    return `<div class="alitem" data-id="${t.id}"><span class="alic">${ic("bell")}</span><div class="altx"><b title="${esc(t.title)}">${esc(t.title)}</b><span>${t.tag?esc(t.tag)+" · ":""}Alerta de ${esc(alFmt(t.alert))}${late?" (no estabas aquí)":""}</span></div>
+      <div class="alb"><button class="btn sm" type="button" data-al="open">Abrir tarea</button><button class="btn sm" type="button" data-al="snooze">Posponer 10 min</button><button class="btn sm primary" type="button" data-al="ok">Listo</button></div></div>`; }).join("");
+  if(!ALQ.length) alBlink(false); }
+function alDrop(id){ if(!ALQ.includes(id)) return; ALQ=ALQ.filter(x=>x!==id); alBar(); }
+function alFire(t){ ALQ=ALQ.filter(x=>x!==t.id); ALQ.push(t.id); alBar(); alSound(); alNotify(t); if(document.hidden||!document.hasFocus()) alBlink(true); }
+function alCheck(){ const now=Date.now(), due=S.tasks.filter(t=>t.alert&&!t.alertFired&&!t.completed&&t.alert<=now); if(!due.length) return;
+  due.forEach(t=>{ t.alertFired=true; alFire(t); }); commit(); }
+$("#alBar").addEventListener("click",e=>{ const b=e.target.closest("[data-al]"); if(!b) return; const id=b.closest("[data-id]").dataset.id, t=taskById(id); alDrop(id); if(!t) return;
+  if(b.dataset.al==="open") goToTask(id);
+  else if(b.dataset.al==="snooze"){ t.alert=Date.now()+10*6e4; t.alertFired=false; commit(); toast("Te vuelvo a avisar "+alFmt(t.alert)); } });
+$("#tasks").addEventListener("keydown",e=>{ if(!e.target.closest(".taladd")) return; const t=taskById(e.target.closest(".task").dataset.id);
+  if(e.key==="Enter"&&e.target.id==="ta-at"){ e.preventDefault(); const v=e.target.value; if(t&&v) alSave(t,new Date(v).getTime()); }
+  else if(e.key==="Escape"){ e.preventDefault(); alertAdd=null; render(); } });
+function alPermUI(){ const info=$("#ntfInfo"), ask=$("#ntfAsk"); if(!info) return; const p="Notification" in window?Notification.permission:"none";
+  info.textContent=p==="granted"?"Activadas. El aviso aparece en la esquina de la pantalla aunque la ventana esté minimizada."
+    :p==="denied"?"Bloqueadas. Para activarlas, haz clic en el ícono junto a la dirección del sitio y permite Notificaciones. Mientras tanto verás el aviso dentro del panel."
+    :p==="none"?"Esta vista no permite notificaciones del sistema. Verás el aviso dentro del panel, con sonido y en el título de la pestaña."
+    :"Aún no activadas. Actívalas para ver el aviso aunque la ventana esté minimizada.";
+  ask.hidden=p!=="default"; }
+$("#ntfAsk").addEventListener("click",()=>{ alAskPerm(); });
+$("#cAlSound").addEventListener("change",()=>{ S.settings.alertSound=$("#cAlSound").checked; commit(); });
+$("#ntfTest").addEventListener("click",()=>{ alSound(); const t={id:"test",title:"Alerta de prueba",tag:"",alert:Date.now()}; alNotify(t); toast(alNtfOn()?"Así se ve y suena una alerta":"Así suena una alerta. Las notificaciones del sistema no están activas."); });
+addEventListener("focus",()=>{ alCheck(); if(alBlinkT) alBlink(false); });
+document.addEventListener("visibilitychange",()=>{ alCheck(); if(!document.hidden&&document.hasFocus()&&alBlinkT) alBlink(false); });
+document.addEventListener("pointerdown",ensureAudio,{once:true});
+setInterval(alCheck,15000); setTimeout(alCheck,1500);
 
 render();
 })();

@@ -146,7 +146,7 @@
           <button type="button" data-cmd="bold" title="Negrita (Ctrl+B)" aria-label="Negrita"><b>N</b></button>
           <button type="button" data-cmd="italic" title="Cursiva (Ctrl+I)" aria-label="Cursiva"><i>K</i></button>
           <button type="button" data-cmd="underline" title="Subrayado (Ctrl+U)" aria-label="Subrayado"><u>S</u></button>
-          <button type="button" data-cmd="strikeThrough" title="Tachado" aria-label="Tachado"><s>T</s></button>
+          <button type="button" data-cmd="strikeThrough" title="Tachar el texto seleccionado (Ctrl+Shift+X)" aria-label="Tachar"><s>Tachar</s></button>
           <span class="sep"></span>
           <button type="button" data-size="2" title="Texto pequeño" aria-label="Texto pequeño" style="font-size:.74rem">A</button>
           <button type="button" data-size="3" title="Texto normal" aria-label="Texto normal">A</button>
@@ -154,6 +154,7 @@
           <span class="sep"></span>
           <button type="button" data-cmd="insertUnorderedList" title="Lista con viñetas">• Lista</button>
           <button type="button" data-cmd="insertOrderedList" title="Lista numerada">1. Lista</button>
+          <button type="button" id="jTodoBtn" aria-pressed="false" title="Lista to-do con casillas (también: escribe [] y espacio). Clic en la casilla para marcarla."><svg class="ic" viewBox="0 0 16 16" aria-hidden="true"><rect x="2.4" y="2.4" width="11.2" height="11.2" rx="2.4"/><path d="M5.2 8.2l2 2 3.8-4.2"/></svg> To-do</button>
           <span class="jhl"><button type="button" id="jHlBtn" title="Destacar: color de fondo o de texto (Ctrl+Shift+H destaca en amarillo)" aria-haspopup="true" aria-expanded="false"><span class="hlic"><svg class="ic" viewBox="0 0 16 16" aria-hidden="true"><path d="M10 2.2l3.8 3.8-6.3 6.3H3.7V8.5z"/><path d="M2.2 14.3h6"/></svg></span> Destacar</button>
             <span class="hlpop" id="jHlPop" hidden><span class="lb">Fondo</span><button type="button" class="sw" data-hl="#ffe066" style="--c:#ffe066" title="Amarillo" aria-label="Amarillo"></button><button type="button" class="sw" data-hl="#a9f0a0" style="--c:#a9f0a0" title="Verde" aria-label="Verde"></button><button type="button" class="sw" data-hl="#ffc2d4" style="--c:#ffc2d4" title="Rosado" aria-label="Rosado"></button><button type="button" class="sw" data-hl="#a5d8ff" style="--c:#a5d8ff" title="Celeste" aria-label="Celeste"></button><button type="button" class="sw" data-hl="#ffd8a8" style="--c:#ffd8a8" title="Naranjo" aria-label="Naranjo"></button><button type="button" class="sw none" data-hl="" title="Quitar destacado" aria-label="Quitar destacado"></button>
               <span class="lb">Texto</span><button type="button" class="sw" data-tc="#e03131" style="--c:#e03131" title="Rojo" aria-label="Rojo"></button><button type="button" class="sw" data-tc="#e8590c" style="--c:#e8590c" title="Naranjo" aria-label="Naranjo"></button><button type="button" class="sw" data-tc="#2f9e44" style="--c:#2f9e44" title="Verde" aria-label="Verde"></button><button type="button" class="sw" data-tc="#1c7ed6" style="--c:#1c7ed6" title="Azul" aria-label="Azul"></button><button type="button" class="sw" data-tc="#9c36b5" style="--c:#9c36b5" title="Morado" aria-label="Morado"></button><button type="button" class="sw none" data-tc="" title="Quitar color de texto" aria-label="Quitar color de texto"></button></span></span>
@@ -258,6 +259,7 @@
       <nav class="setnav" id="setNav" role="tablist" aria-label="Secciones de ajustes" aria-orientation="vertical">
         <button type="button" role="tab" id="setTab-timer" data-sec="timer" data-ic="timer">Temporizador</button>
         <button type="button" role="tab" id="setTab-look" data-sec="look" data-ic="image">Apariencia</button>
+        <button type="button" role="tab" id="setTab-alert" data-sec="alert" data-ic="bell">Alertas</button>
         <button type="button" role="tab" id="setTab-bak" data-sec="bak" data-ic="down">Respaldo</button>
         <button type="button" role="tab" id="setTab-data" data-sec="data" data-ic="trash">Datos</button>
       </nav>
@@ -279,6 +281,12 @@
     <div class="setopt"><div class="setlbl">Paneles</div><div class="seg" id="laySeg" role="group" aria-label="Ubicación de los paneles"><button type="button" data-lay-opt="side" data-ic="cols">Al lado del reloj</button><button type="button" data-lay-opt="below" data-ic="rows">Debajo del reloj</button></div><div class="meta" id="layNote">Al lado se usa en pantallas anchas, de 1100 px o más. En pantallas más angostas los paneles van siempre debajo.</div></div>
     <div><div class="setlbl">Fondo</div><div class="bgpick" id="bgPick"></div></div>
     <label class="chk"><input type="checkbox" id="cFocusMode"> Modo enfoque: atenuar todo menos el reloj mientras corre un pomodoro</label>
+      </section>
+      <section class="setsec" id="set-alert" role="tabpanel" aria-labelledby="setTab-alert" hidden>
+        <h3>Alertas</h3><p class="meta setdesc">Avisos de las tareas con alerta. Funcionan mientras la app esté abierta, aunque la ventana esté minimizada o en otra pestaña.</p>
+        <div class="setrow"><div><b>Notificaciones del sistema</b><div class="meta" id="ntfInfo" style="margin:0"></div></div><button class="btn sm" type="button" id="ntfAsk" hidden>Activar</button></div>
+        <label class="chk"><input type="checkbox" id="cAlSound"> Sonido en las alertas</label>
+        <div><button class="btn sm" type="button" id="ntfTest">Probar alerta</button></div>
       </section>
       <section class="setsec" id="set-bak" role="tabpanel" aria-labelledby="setTab-bak" hidden>
         <h3>Respaldo</h3><p class="meta setdesc">Los cambios de esta sección se aplican al momento.</p>
@@ -337,6 +345,7 @@
   <div class="cklist" id="ckList" role="listbox"></div>
   <div class="ckfoot">↑ ↓ para moverte · Enter para abrir · Esc para cerrar</div>
 </dialog>
+<div class="albar" id="alBar" role="alert" hidden></div>
 <div class="toast" id="toast" hidden></div>
 <script src="js/app.js"></script>
 </body>

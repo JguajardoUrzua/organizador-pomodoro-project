@@ -1,6 +1,6 @@
 // Service worker: keeps the app working without internet.
 // When you publish a new version, change VERSION so browsers pick up the new files.
-const VERSION = "v12";
+const VERSION = "v13";
 const CACHE = "tareas-" + VERSION;
 const FILES = [
   "./",
@@ -24,6 +24,11 @@ self.addEventListener("install", e => {
 });
 self.addEventListener("activate", e => {
   e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k.startsWith("tareas-") && k !== CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim()));
+});
+// task alerts: clicking the notification brings the app to the front
+self.addEventListener("notificationclick", e => {
+  e.notification.close();
+  e.waitUntil(self.clients.matchAll({ type: "window", includeUncontrolled: true }).then(cs => cs.length ? cs[0].focus() : self.clients.openWindow("./")));
 });
 self.addEventListener("fetch", e => {
   const req = e.request, url = new URL(req.url);
