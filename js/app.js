@@ -98,6 +98,7 @@ function tick(){
   const subKey=s1+"\u0000"+(nx?nx.text:"");
   if($("#sub").dataset.k!==subKey){ $("#sub").dataset.k=subKey; $("#sub").innerHTML=`<span class="s1">${esc(s1)}</span>`+(nx?`<span class="s2">${esc(nx.text)}</span>`:"");
     $("#sub").title=s1+(nx?"\nSiguiente: "+nx.text:"")+(T.mode==="focus"&&ft&&!ft.completed?"\nClic para abrir la tarea":""); }
+  const pj=T.mode==="focus"&&ft&&!ft.completed&&ft.tag?ft.tag:""; if($("#proj").textContent!==pj){ $("#proj").textContent=pj; $("#proj").title=pj?"Proyecto: "+pj:""; } $("#proj").hidden=!pj;
   const lk=T.mode==="focus"&&!!ft&&!ft.completed; $("#sub").classList.toggle("link",lk); $("#sub").dataset.tid=lk?ft.id:"";
   if(lk){ $("#sub").setAttribute("role","button"); $("#sub").tabIndex=0; } else { $("#sub").removeAttribute("role"); $("#sub").removeAttribute("tabindex"); }
   $("#cyc").innerHTML=Array.from({length:every},(_,i)=>`<i class="${i<n?"on":""}"></i>`).join("");
