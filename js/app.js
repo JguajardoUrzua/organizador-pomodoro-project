@@ -14,7 +14,7 @@ let S = normalize(lsGet(LS));
 function normalize(x){
   x = x && typeof x==="object" ? x : {};
   return {settings:{...DEF.settings,...(x.settings||{})},tasks:Array.isArray(x.tasks)?x.tasks.map(t=>t.status?t:{...t,status:t.completed?"done":"todo"}):[],notes:Array.isArray(x.notes)?x.notes:[],
-    log:Array.isArray(x.log)?x.log:[],tlog:x.tlog&&typeof x.tlog==="object"&&!Array.isArray(x.tlog)?x.tlog:{},music:Array.isArray(x.music)?x.music:[],activeTaskId:x.activeTaskId??null,updatedAt:x.updatedAt||0};
+    log:Array.isArray(x.log)?x.log:[],tlog:x.tlog&&typeof x.tlog==="object"&&!Array.isArray(x.tlog)?x.tlog:{},music:Array.isArray(x.music)?x.music:[],focus:Array.isArray(x.focus)?x.focus.filter(v=>typeof v==="string").slice(0,3):[],activeTaskId:x.activeTaskId??null,updatedAt:x.updatedAt||0};
 }
 
 // ---------- persistence (browser + private db doc) ----------
@@ -93,7 +93,7 @@ function tick(){
   document.querySelectorAll(".modes button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.mode===T.mode));
   $("#toggle").textContent=T.running?"Pausar":(ms<durMs(T.mode)?"Continuar":"Iniciar");
   const every=S.settings.longEvery, n=(T.count||0)%every;
-  const ft=(T.track&&taskById(T.track.id))||(S.activeTaskId&&taskById(S.activeTaskId));
+  const ft=(T.track&&taskById(T.track.id))||((S.focus||[]).length&&taskById(S.focus[0]))||(S.activeTaskId&&taskById(S.activeTaskId));
   const s1=T.mode==="focus"?(ft&&!ft.completed?ft.title:"Sin tarea seleccionada"):T.mode==="short"?"Pausa corta":"Pausa larga";
   const nx=T.mode==="focus"&&ft&&!ft.completed?(ft.todos||[]).find(x=>!x.done):null;
   const subKey=s1+"\u0000"+(nx?nx.text:"");
@@ -543,8 +543,14 @@ var HOST_THEME=document.documentElement.getAttribute("data-theme");
 function applyLook(){ if(HOST_THEME===undefined) return; const st=S.settings, th=st.theme==="light"||st.theme==="dark"?st.theme:"system", de=document.documentElement;
   if(th==="system"){ if(HOST_THEME) de.setAttribute("data-theme",HOST_THEME); else de.removeAttribute("data-theme"); } else de.setAttribute("data-theme",th);
   document.body.classList.toggle("lay-below",st.layout==="below");
+  const foH=st.foH==="below"?"below":"side", foV=st.foV==="side"?"side":"below";
+  document.body.classList.toggle("foh-side",foH==="side"); document.body.classList.toggle("fov-side",foV==="side");
+  document.querySelectorAll("[data-foh]").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.foh===foH)));
+  document.querySelectorAll("[data-fov]").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.fov===foV)));
   document.querySelectorAll("[data-theme-opt]").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.themeOpt===th)));
   document.querySelectorAll("[data-lay-opt]").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.layOpt===(st.layout==="below"?"below":"side")))); }
+$("#foHSeg").addEventListener("click",e=>{ const b=e.target.closest("[data-foh]"); if(!b) return; S.settings.foH=b.dataset.foh; applyLook(); commit(); });
+$("#foVSeg").addEventListener("click",e=>{ const b=e.target.closest("[data-fov]"); if(!b) return; S.settings.foV=b.dataset.fov; applyLook(); commit(); });
 $("#themeSeg").addEventListener("click",e=>{ const b=e.target.closest("[data-theme-opt]"); if(!b) return; S.settings.theme=b.dataset.themeOpt; applyLook(); commit(); });
 $("#laySeg").addEventListener("click",e=>{ const b=e.target.closest("[data-lay-opt]"); if(!b) return; S.settings.layout=b.dataset.layOpt; applyLook(); commit(); });
 $("#cFocusMode").addEventListener("change",()=>{ S.settings.focusMode=$("#cFocusMode").checked; commit(); });

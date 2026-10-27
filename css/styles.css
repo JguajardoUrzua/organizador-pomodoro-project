@@ -728,3 +728,16 @@ body.focoview .grid,body.focoview .grid>.leftcol{display:block}
 body.focoview .wrap .panel.timer{grid-column:1/-1;grid-row:auto;position:static;max-width:620px;margin:0 auto}
 body.focoview .foslot{padding:11px 12px}
 body.focoview .fott{font-size:1rem}
+/* vista Foco with the cards beside the clock (per orientation, from Ajustes) */
+@media (orientation:landscape) and (min-width:760px){
+  body.focoview.foh-side .wrap{max-width:1120px}
+  body.focoview.foh-side .wrap .panel.timer{max-width:1080px;display:grid;grid-template-columns:minmax(0,1fr) minmax(300px,390px);column-gap:32px;align-items:start}
+  body.focoview.foh-side .panel.timer>*{grid-column:1}
+  body.focoview.foh-side .panel.timer>#foco{grid-column:2;grid-row:1/span 8;align-self:center;margin-top:0}
+}
+@media (orientation:portrait) and (min-width:760px){
+  body.focoview.fov-side .wrap{max-width:1120px}
+  body.focoview.fov-side .wrap .panel.timer{max-width:1080px;display:grid;grid-template-columns:minmax(0,1fr) minmax(280px,360px);column-gap:24px;align-items:start}
+  body.focoview.fov-side .panel.timer>*{grid-column:1}
+  body.focoview.fov-side .panel.timer>#foco{grid-column:2;grid-row:1/span 8;align-self:center;margin-top:0}
+}
