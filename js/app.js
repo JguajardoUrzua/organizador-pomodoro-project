@@ -543,14 +543,11 @@ var HOST_THEME=document.documentElement.getAttribute("data-theme");
 function applyLook(){ if(HOST_THEME===undefined) return; const st=S.settings, th=st.theme==="light"||st.theme==="dark"?st.theme:"system", de=document.documentElement;
   if(th==="system"){ if(HOST_THEME) de.setAttribute("data-theme",HOST_THEME); else de.removeAttribute("data-theme"); } else de.setAttribute("data-theme",th);
   document.body.classList.toggle("lay-below",st.layout==="below");
-  const foH=st.foH==="below"?"below":"side", foV=st.foV==="side"?"side":"below";
-  document.body.classList.toggle("foh-side",foH==="side"); document.body.classList.toggle("fov-side",foV==="side");
-  document.querySelectorAll("[data-foh]").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.foh===foH)));
-  document.querySelectorAll("[data-fov]").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.fov===foV)));
+  const foPos=st.foPos==="below"?"below":"side"; document.body.classList.toggle("fo-side",foPos==="side");
+  document.querySelectorAll("[data-fopos]").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.fopos===foPos)));
   document.querySelectorAll("[data-theme-opt]").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.themeOpt===th)));
   document.querySelectorAll("[data-lay-opt]").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.layOpt===(st.layout==="below"?"below":"side")))); }
-$("#foHSeg").addEventListener("click",e=>{ const b=e.target.closest("[data-foh]"); if(!b) return; S.settings.foH=b.dataset.foh; applyLook(); commit(); });
-$("#foVSeg").addEventListener("click",e=>{ const b=e.target.closest("[data-fov]"); if(!b) return; S.settings.foV=b.dataset.fov; applyLook(); commit(); });
+$("#foPosSeg").addEventListener("click",e=>{ const b=e.target.closest("[data-fopos]"); if(!b) return; S.settings.foPos=b.dataset.fopos; applyLook(); commit(); });
 $("#themeSeg").addEventListener("click",e=>{ const b=e.target.closest("[data-theme-opt]"); if(!b) return; S.settings.theme=b.dataset.themeOpt; applyLook(); commit(); });
 $("#laySeg").addEventListener("click",e=>{ const b=e.target.closest("[data-lay-opt]"); if(!b) return; S.settings.layout=b.dataset.layOpt; applyLook(); commit(); });
 $("#cFocusMode").addEventListener("change",()=>{ S.settings.focusMode=$("#cFocusMode").checked; commit(); });
@@ -1820,9 +1817,21 @@ async function radLoad(){
 }
 function radDefCountry(){ const l=navigator.language||"", m=l.match(/^es-([A-Z]{2})$/i), c=m&&m[1].toUpperCase(); return RAD_C.some(x=>x[0]===c)?c:"CL"; }
 const radFavs=()=>Array.isArray(S.settings.radFav)?S.settings.radFav:[];
+// stations added by hand (a stream link plays here, a web page such as emisoras.cl opens in a small window)
+const radMine=()=>Array.isArray(S.settings.radMine)?S.settings.radMine:[];
+const radIsStream=u=>/\.(mp3|aac|aacp|ogg|opus|m3u8?|pls|flac)(\?|$)|\/(stream|live|listen|icecast|radio\.mp3)\b|;stream|:\d{2,5}\//i.test(u);
+var radWin=null, radWinT=null;
+function radPopup(st){ if(RAD.audio){ RAD.audio.pause(); RAD.audio.removeAttribute("src"); }
+  radWin=window.open(st.page||st.url,"pp-radio","width=440,height=680");
+  if(!radWin){ toast("El navegador bloqueó la ventana. Permite ventanas emergentes para este sitio."); return; }
+  RAD.cur={...st,win:true}; radNowName=st.name; ambUI(); radRender();
+  clearInterval(radWinT); radWinT=setInterval(()=>{ if(!radWin||radWin.closed){ clearInterval(radWinT); radWin=null; if(RAD.cur&&RAD.cur.win){ RAD.cur=null; radNowName=""; ambUI(); radRender(); } } },1000); }
 const radIsFav=id=>radFavs().some(f=>f.id===id);
 function radLogo(st){ return `<span class="lg">${st.logo?`<img src="${esc(st.logo)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">`:""}${ic("head")}</span>`; }
 function radRow(st){ const on=RAD.cur&&RAD.cur.id===st.id, fav=radIsFav(st.id);
+  if(st.mine) return `<li class="rad ${on?"cur":""}" data-rad="${esc(st.id)}" title="${on?"Sonando":"Escuchar"} ${esc(st.name)}">${radLogo(st)}
+    <div style="min-width:0"><div class="nm">${esc(st.name)}</div><div class="meta">${radIsStream(st.url)?"Señal en vivo":"Se abre en ventana aparte"} · ${esc((()=>{ try{ return new URL(st.url).hostname.replace(/^www\./,""); }catch{ return ""; } })())}</div></div>
+    <button class="x" type="button" data-radx aria-label="Quitar ${esc(st.name)}" title="Quitar de mis radios">${ic("x")}</button></li>`;
   return `<li class="rad ${on?"cur":""}" data-rad="${esc(st.id)}" title="${on?"Sonando":"Escuchar"} ${esc(st.name)}">${radLogo(st)}
     <div style="min-width:0"><div class="nm">${esc(st.name)}</div><div class="meta">${esc([st.city,st.tags].filter(Boolean).join(" · ")||"Radio en vivo")}</div></div>
     <button class="star ${fav?"on":""}" type="button" data-radfav aria-pressed="${fav}" aria-label="${fav?"Quitar de favoritas":"Agregar a favoritas"}" title="${fav?"Quitar de favoritas":"Agregar a favoritas"}">${ic("star",fav?"fill":"")}</button></li>`; }
@@ -1833,16 +1842,19 @@ function radRender(){
   sel.value=cc;
   const favs=radFavs(), q=fold(RAD.q.trim()), favShow=q?favs.filter(f=>fold(f.name).includes(q)):favs, favIds=new Set(favs.map(f=>f.id));
   let h="";
+  const mine=radMine().filter(m=>!q||fold(m.name).includes(q));
+  if(mine.length) h+=`<li class="sub">Mis radios</li>`+mine.map(radRow).join("");
   if(favShow.length) h+=`<li class="sub">Favoritas</li>`+favShow.map(radRow).join("");
   const rest=RAD.list.filter(x=>!favIds.has(x.id));
   if(RAD.state==="loading") h+=`<li class="msg">Buscando emisoras…</li>`;
-  else if(RAD.state==="error") h+=`<li class="msg">No se pudo cargar la lista de radios. Revisa tu conexión e inténtalo de nuevo.</li>`;
+  else if(RAD.state==="error") h+=`<li class="msg">No se pudo cargar el directorio de radios. Puede que tu red bloquee radio-browser.info. Agrega tus emisoras con «+ Agregar radio», pegando el link de la emisora en emisoras.cl.<br><a class="btn sm" href="https://emisoras.cl" target="_blank" rel="noopener noreferrer">Abrir emisoras.cl</a></li>`;
   else if(!rest.length) h+=`<li class="msg">${q?`Ninguna emisora coincide con «${esc(RAD.q.trim())}».`:"No hay emisoras disponibles para este país."}</li>`;
   else h+=(favShow.length?`<li class="sub">${q?"Resultados":"Más escuchadas"}</li>`:"")+rest.slice(0,RAD.shown).map(radRow).join("");
   $("#radList").innerHTML=h;
   $("#radMore").hidden=RAD.state!==""||rest.length<=RAD.shown;
   const n=$("#radNow"), c=RAD.cur;
   n.hidden=!c;
+  if(c&&c.win){ n.innerHTML=`<div class="nm">${esc(c.name)}<div class="st">Sonando en una ventana aparte</div></div><button class="btn sm" type="button" data-radshow>Mostrar</button><button class="btn sm" type="button" data-radstop>Cerrar</button>`; return; }
   if(c){ const st=RAD.audio&&RAD.audio.paused?"En pausa":RAD.audio&&RAD.audio.dataset.st==="wait"?"Conectando…":"En vivo";
     n.innerHTML=`<button class="btn track" type="button" data-radtoggle aria-label="${st==="En pausa"?"Reanudar":"Pausar"}" title="${st==="En pausa"?"Reanudar":"Pausar"}">${ic(st==="En pausa"?"play":"pause")}</button>
       <div class="nm">${esc(c.name)}<div class="st">${st}</div></div>
@@ -1855,25 +1867,36 @@ function radPlay(st){
     a.addEventListener("playing",()=>{ a.dataset.st=""; radRender(); });
     a.addEventListener("waiting",()=>{ a.dataset.st="wait"; radRender(); });
     a.addEventListener("pause",radRender);
-    a.addEventListener("error",()=>{ if(!RAD.cur) return; toast(`No se pudo reproducir ${RAD.cur.name}. Prueba otra emisora.`); radStop(); });
+    a.addEventListener("error",()=>{ if(!RAD.cur||RAD.cur.win||!a.getAttribute("src")) return; const c=RAD.cur; if(c.mine){ toast(`${c.name} no se puede reproducir aquí; la abro en una ventana aparte.`); radPopup(c); return; } toast(`No se pudo reproducir ${c.name}. Prueba otra emisora.`); radStop(); });
     RAD.audio=a; }
+  if(st.mine&&!radIsStream(st.url)){ radPopup(st); return; }
+  if(radWin&&!radWin.closed) try{ radWin.close(); }catch{}
   const a=RAD.audio; RAD.cur=st; a.dataset.st="wait"; a.src=st.url; a.volume=S.settings.radVol??.8;
-  a.play().catch(e=>{ if(e&&e.name==="AbortError") return; toast(`No se pudo reproducir ${st.name}.`); radStop(); });
+  a.play().catch(e=>{ if(e&&e.name==="AbortError") return; if(RAD.cur&&RAD.cur.win) return; if(st.mine){ toast(`${st.name} no se puede reproducir aquí; la abro en una ventana aparte.`); radPopup(st); return; } toast(`No se pudo reproducir ${st.name}.`); radStop(); });
   if("mediaSession" in navigator) try{ navigator.mediaSession.metadata=new MediaMetadata({title:st.name,artist:"Radio en vivo",artwork:st.logo?[{src:st.logo}]:[]}); }catch{}
-  radApi("/json/url/"+encodeURIComponent(st.id)).catch(()=>{}); // counts the listen in the directory
+  if(!st.mine) radApi("/json/url/"+encodeURIComponent(st.id)).catch(()=>{}); // counts the listen in the directory
   radNowName=st.name; ambUI(); radRender();
 }
-function radStop(){ if(RAD.audio){ RAD.audio.pause(); RAD.audio.removeAttribute("src"); RAD.audio.load(); } RAD.cur=null; radNowName=""; ambUI(); radRender(); }
+function radStop(){ if(radWin){ try{ radWin.close(); }catch{} radWin=null; clearInterval(radWinT); } if(RAD.audio){ RAD.audio.pause(); RAD.audio.removeAttribute("src"); RAD.audio.load(); } RAD.cur=null; radNowName=""; ambUI(); radRender(); }
 if(!RAD_ON){ $("#radBox").hidden=true; $("#radOff").hidden=false; }
 else {
   $("#radCountry").addEventListener("change",e=>{ S.settings.radCountry=e.target.value; commit(); radLoad(); });
   let radT=null; $("#radQ").addEventListener("input",e=>{ RAD.q=e.target.value; clearTimeout(radT); radRender(); radT=setTimeout(radLoad,450); });
   $("#radMore").addEventListener("click",()=>{ RAD.shown+=30; radRender(); });
-  $("#radList").addEventListener("click",e=>{ const li=e.target.closest("[data-rad]"); if(!li) return; const id=li.dataset.rad, st=RAD.list.find(x=>x.id===id)||radFavs().find(x=>x.id===id); if(!st) return;
+  const radAddShow=on=>{ $("#radAdd").hidden=!on; $("#radAddBtn").hidden=on; if(on){ $("#radAddUrl").value=""; $("#radAddName").value=""; $("#radAddUrl").focus(); } };
+  $("#radAddBtn").addEventListener("click",()=>radAddShow(true));
+  $("#radAddCancel").addEventListener("click",()=>radAddShow(false));
+  $("#radAdd").addEventListener("keydown",e=>{ if(e.key==="Escape"){ e.preventDefault(); radAddShow(false); } });
+  $("#radAddUrl").addEventListener("change",()=>{ const u=normUrl($("#radAddUrl").value); if(u&&!$("#radAddName").value.trim()){ const m=u.match(/emisoras\.cl\/([^/?#]+)/i); if(m) $("#radAddName").value=decodeURIComponent(m[1]).replace(/[-_]+/g," ").replace(/\b\w/g,c=>c.toUpperCase()); } });
+  $("#radAdd").addEventListener("submit",e=>{ e.preventDefault(); const u=normUrl($("#radAddUrl").value); if(!u){ toast("Ese link no es válido. Copia la dirección completa."); $("#radAddUrl").focus(); return; }
+    const name=$("#radAddName").value.trim()||linkName(u); S.settings.radMine=[...radMine(),{id:"m-"+uid(),name,url:u,mine:true}]; radAddShow(false); commit(); radRender(); toast(`${name} agregada a Mis radios`); });
+  $("#radList").addEventListener("click",e=>{ const li=e.target.closest("[data-rad]"); if(!li) return; const id=li.dataset.rad, st=RAD.list.find(x=>x.id===id)||radFavs().find(x=>x.id===id)||radMine().find(x=>x.id===id); if(!st) return;
+    if(e.target.closest("[data-radx]")){ if(RAD.cur&&RAD.cur.id===id) radStop(); S.settings.radMine=radMine().filter(x=>x.id!==id); commit(); radRender(); toast(`${st.name} quitada de Mis radios`); return; }
+    if(st.mine&&RAD.cur&&RAD.cur.id===id&&RAD.cur.win){ try{ radWin&&radWin.focus(); }catch{} return; }
     if(e.target.closest("[data-radfav]")){ const f=radFavs(); S.settings.radFav=radIsFav(id)?f.filter(x=>x.id!==id):[...f,{id:st.id,name:st.name,url:st.url,logo:st.logo,tags:st.tags,city:st.city}]; commit(); radRender(); toast(radIsFav(id)?`${st.name} en favoritas`:`${st.name} quitada de favoritas`); return; }
     if(RAD.cur&&RAD.cur.id===id){ RAD.audio.paused?RAD.audio.play().catch(()=>{}):RAD.audio.pause(); return; }
     radPlay(st); });
-  $("#radNow").addEventListener("click",e=>{ if(e.target.closest("[data-radstop]")) radStop(); else if(e.target.closest("[data-radtoggle]")&&RAD.audio){ RAD.audio.paused?RAD.audio.play().catch(()=>{}):RAD.audio.pause(); } });
+  $("#radNow").addEventListener("click",e=>{ if(e.target.closest("[data-radshow]")){ try{ radWin&&radWin.focus(); }catch{} return; } if(e.target.closest("[data-radstop]")) radStop(); else if(e.target.closest("[data-radtoggle]")&&RAD.audio){ RAD.audio.paused?RAD.audio.play().catch(()=>{}):RAD.audio.pause(); } });
   $("#radNow").addEventListener("input",e=>{ if(!e.target.matches("[data-radvol]")) return; const v=+e.target.value; S.settings.radVol=v; if(RAD.audio) RAD.audio.volume=v; clearTimeout(RAD.volT); RAD.volT=setTimeout(commit,400); });
   // starting the ambient sound stops the radio
   $("#ambPlay").addEventListener("click",()=>{ if(AMB.want&&RAD.cur) radStop(); });

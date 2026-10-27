@@ -13,7 +13,7 @@
 <meta name="apple-mobile-web-app-title" content="Tareas">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap">
-<link rel="stylesheet" href="css/styles.css?v=v17-foco">
+<link rel="stylesheet" href="css/styles.css?v=v18-foco">
 </head>
 <body>
 <canvas id="scene" aria-hidden="true"></canvas>
@@ -234,7 +234,10 @@
         <div class="radnow" id="radNow" hidden></div>
         <ul class="radlist" id="radList" aria-live="polite"></ul>
         <button class="linkbtn" type="button" id="radMore" hidden>Ver más emisoras</button>
-        <div class="meta radsrc">Emisoras de <a href="https://www.radio-browser.info" target="_blank" rel="noopener noreferrer">radio-browser.info</a>, un directorio abierto.</div>
+        <button class="linkbtn" type="button" id="radAddBtn">+ Agregar radio</button>
+        <form class="radadd" id="radAdd" autocomplete="off" hidden><input type="url" id="radAddUrl" placeholder="Link de la radio (emisoras.cl o señal en vivo)" aria-label="Link de la radio"><input type="text" id="radAddName" placeholder="Nombre" aria-label="Nombre de la radio"><button class="btn sm" type="button" id="radAddCancel">Cancelar</button><button class="btn sm primary" type="submit">Agregar</button>
+          <span class="note">Copia la dirección de la página de la emisora en emisoras.cl y pégala aquí. Si tienes el link directo de la señal (termina en .mp3, .aac o similar), suena dentro del panel; si es una página, se abre en una ventana pequeña aparte.</span></form>
+        <div class="meta radsrc">Emisoras de <a href="https://www.radio-browser.info" target="_blank" rel="noopener noreferrer">radio-browser.info</a>, un directorio abierto. También puedes buscar en <a href="https://emisoras.cl" target="_blank" rel="noopener noreferrer">emisoras.cl</a> y agregarlas como tus radios.</div>
       </div>
       </div>
     </section>
@@ -281,8 +284,7 @@
         <h3>Apariencia</h3><p class="meta setdesc">Los cambios de esta sección se aplican al momento.</p>
     <div class="setopt"><div class="setlbl">Tema</div><div class="seg" id="themeSeg" role="group" aria-label="Tema"><button type="button" data-theme-opt="system" data-ic="monitor">Sistema</button><button type="button" data-theme-opt="light" data-ic="sun">Claro</button><button type="button" data-theme-opt="dark" data-ic="moon">Oscuro</button></div></div>
     <div class="setopt"><div class="setlbl">Paneles</div><div class="seg" id="laySeg" role="group" aria-label="Ubicación de los paneles"><button type="button" data-lay-opt="side" data-ic="cols">Al lado del reloj</button><button type="button" data-lay-opt="below" data-ic="rows">Debajo del reloj</button></div><div class="meta" id="layNote">Al lado se usa en pantallas anchas, de 1100 px o más. En pantallas más angostas los paneles van siempre debajo.</div></div>
-    <div class="setopt"><div class="setlbl">Vista Foco · pantalla horizontal</div><div class="seg" id="foHSeg" role="group" aria-label="Tarjetas de Foco en pantalla horizontal"><button type="button" data-foh="side" data-ic="cols">Al lado del reloj</button><button type="button" data-foh="below" data-ic="rows">Debajo del reloj</button></div></div>
-    <div class="setopt"><div class="setlbl">Vista Foco · pantalla vertical</div><div class="seg" id="foVSeg" role="group" aria-label="Tarjetas de Foco en pantalla vertical"><button type="button" data-fov="side" data-ic="cols">Al lado del reloj</button><button type="button" data-fov="below" data-ic="rows">Debajo del reloj</button></div><div class="meta">Dónde van las tarjetas Ahora, Siguiente y Después cuando usas la vista Foco (tecla F). Al lado necesita al menos 760 px de ancho.</div></div>
+    <div class="setopt"><div class="setlbl">Ubicación del panel de Foco</div><div class="seg" id="foPosSeg" role="group" aria-label="Ubicación del panel de Foco"><button type="button" data-fopos="side" data-ic="cols">Al lado del reloj</button><button type="button" data-fopos="below" data-ic="rows">Debajo del reloj</button></div><div class="meta">Dónde van las tarjetas Ahora, Siguiente y Después en la vista Foco (tecla F). Al lado se usa en pantallas de 760 px de ancho o más; en las más angostas van siempre debajo.</div></div>
     <div><div class="setlbl">Fondo</div><div class="bgpick" id="bgPick"></div></div>
     <label class="chk"><input type="checkbox" id="cFocusMode"> Modo enfoque: atenuar todo menos el reloj mientras corre un pomodoro</label>
       </section>
@@ -351,6 +353,6 @@
 </dialog>
 <div class="albar" id="alBar" role="alert" hidden></div>
 <div class="toast" id="toast" hidden></div>
-<script src="js/app.js?v=v17-foco"></script>
+<script src="js/app.js?v=v18-foco"></script>
 </body>
 </html>
