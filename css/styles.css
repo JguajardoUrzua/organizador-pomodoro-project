@@ -683,3 +683,48 @@ header.top .btn[aria-pressed="true"]{background:var(--ink);color:var(--surface);
 @media (max-width:560px){.jsearch{width:100%}.jnav select{max-width:150px}.jmenu .pop{right:auto;left:0}}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 @media (hover:none){.todo .icon{visibility:visible}}
+
+/* ---------- Foco ---------- */
+.foco{margin-top:14px;display:grid;gap:7px;text-align:left}
+.fohead{display:flex;align-items:center;gap:8px;padding:4px 6px 4px 10px;border-radius:12px;background:var(--glass-2);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);border:1px solid var(--glass-line)}
+.fot{display:inline-flex;align-items:center;gap:5px;font-weight:700;font-size:.92rem}
+.foc{font-size:.74rem;color:var(--ink-2)}
+.fohead .btn{display:inline-flex;align-items:center;gap:5px}
+.foempty{font-size:.82rem;color:var(--ink-2);background:var(--surface);border:1px dashed var(--line);border-radius:10px;padding:9px 11px;line-height:1.5}
+.foempty svg.ic{vertical-align:-3px;color:var(--accent)}
+.foslot{background:var(--surface);border:1px solid var(--line);border-radius:11px;padding:8px 9px}
+.foslot.fonow{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-soft)}
+.foslot.empty{border-style:dashed;background:color-mix(in srgb,var(--surface) 55%,transparent);color:var(--ink-3);font-size:.8rem;text-align:center;padding:9px}
+.fotop{display:flex;align-items:flex-start;gap:8px}
+.fon{flex:none;width:22px;height:22px;border-radius:50%;display:grid;place-items:center;font-size:.74rem;font-weight:700;border:1.5px solid var(--line);color:var(--ink-2);margin-top:2px}
+.foslot.fonow .fon{border-color:var(--accent);color:var(--accent)}
+.fob{flex:1;min-width:0}
+.fol{font-size:.64rem;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-3)}
+.foslot.fonow .fol{color:var(--accent)}
+.fott{all:unset;cursor:pointer;font-weight:600;font-size:.9rem;line-height:1.3;display:block;overflow-wrap:anywhere}
+.fott:hover{text-decoration:underline}
+.fott:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:3px}
+.fom{font-size:.72rem;color:var(--ink-3)}
+.foa{display:flex;gap:2px;flex:none}
+.foa .icon{display:grid;place-items:center;width:28px;height:28px;padding:0}
+.foa .icon:hover{background:var(--surface-2);color:var(--ink)}
+.foa .fplay{color:var(--accent)}
+.foa .fplay svg{width:12px;height:12px;fill:currentColor}
+.fotd{margin:5px 0 0 30px;padding:0;list-style:none;font-size:.78rem;color:var(--ink-2)}
+.fotd li::before{content:"\2610  ";color:var(--ink-3)}
+.fotd li.more::before{content:""}
+.fotd li.more{color:var(--ink-3)}
+.foidea{display:block;width:calc(100% - 30px);margin:6px 0 0 30px;font:inherit;font-size:.78rem;padding:4px 8px;border:1px dashed var(--line);border-radius:8px;background:transparent;color:var(--ink)}
+.foidea:focus{outline:none;border-style:solid;border-color:var(--accent)}
+.fochip{display:inline-flex;align-items:center;gap:3px;color:var(--accent);font-weight:600;white-space:nowrap}
+.task .acts .icon.on{color:var(--accent)}
+.foask{grid-column:2/-1;border:1.5px solid var(--warn);border-radius:10px;padding:8px 10px;margin-top:4px;font-size:.8rem;display:grid;gap:6px;background:var(--surface)}
+.foask b{color:var(--warn)}
+.foask .r{display:flex;gap:6px;flex-wrap:wrap}
+/* vista Foco: only the clock and the three tasks */
+body.focoview .wrap{max-width:660px;grid-template-columns:minmax(0,1fr)}
+body.focoview .wrap>header.top>div,body.focoview .tasks-panel,body.focoview .notes-panel,body.focoview .row2,body.focoview .keys,body.focoview #now{display:none!important}
+body.focoview .grid,body.focoview .grid>.leftcol{display:block}
+body.focoview .wrap .panel.timer{grid-column:1/-1;grid-row:auto;position:static;max-width:620px;margin:0 auto}
+body.focoview .foslot{padding:11px 12px}
+body.focoview .fott{font-size:1rem}

@@ -1,7 +1,7 @@
 (() => {
 const LS = "pomodoro-panel-v1", LT = "pomodoro-timer-v1";
 const DEF = {settings:{focus:25,short:5,long:15,longEvery:4,goal:8,autoBreaks:false,autoFocus:false,sound:true,ambKind:"rain",ambVol:.5,ambSync:false,jtags:[]},
-  tasks:[],notes:[],log:[],tlog:{},activeTaskId:null,updatedAt:0};
+  tasks:[],notes:[],log:[],tlog:{},focus:[],activeTaskId:null,updatedAt:0};
 const $ = s => document.querySelector(s);
 const uid = () => Math.random().toString(36).slice(2,10)+Date.now().toString(36).slice(-4);
 const esc = s => String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -56,6 +56,7 @@ function liveSpent(t){ let v=t.spent||0; if(T.track&&T.track.id===t.id&&T.track.
 function stopTrack(){ if(!T.track) return; accrue(); T.track=null; saveT(); }
 function startTrack(id){
   ensureAudio(); accrue();
+  { const f=S.focus||[]; if(f.includes(id)&&f[0]!==id) S.focus=[id,...f.filter(x=>x!==id)]; }
   if(T.mode!=="focus"){ T.track=null; setMode("focus",false); }
   { const pv=T.track&&T.track.id!==id&&taskById(T.track.id); if(pv&&pv.status==="doing"&&!pv.completed) pv.status="paused"; }
   T.track={id,since:null}; S.activeTaskId=id;
@@ -132,11 +133,11 @@ let tq="";
 function hl(txt){ const e=esc(txt); if(!tq.trim()) return e; const ws=fold(tq.trim()).split(/\s+/).filter(Boolean); const f=fold(txt); const mk=new Array(txt.length).fill(false);
   if(f.length!==txt.length) return e; ws.forEach(w=>{ let i=0; while((i=f.indexOf(w,i))>=0){ for(let k=i;k<i+w.length;k++) mk[k]=true; i+=w.length; } });
   let out="",on=false; for(let i=0;i<txt.length;i++){ if(mk[i]!==on){ out+=mk[i]?'<mark class="hl">':'</mark>'; on=mk[i]; } out+=esc(txt[i]); } return out+(on?"</mark>":""); }
-let filter=(lsGet("pp-filter")||"open"), tagF=lsGet("pp-tag")||null, tagKey="", sortBy=(lsGet("pp-sort")||"manual"), editing=null, todoAdd=null, qnote=null, qnoteNew=null, linkAdd=null, alertAdd=null;
+let filter=(lsGet("pp-filter")||"open"), tagF=lsGet("pp-tag")||null, tagKey="", sortBy=(lsGet("pp-sort")||"manual"), editing=null, todoAdd=null, qnote=null, qnoteNew=null, linkAdd=null, alertAdd=null, focoAsk=null;
 // attached links: only http(s); a bare address gets https://
 const normUrl=v=>{ v=String(v||"").trim(); if(!v) return ""; if(!/^[a-z][a-z0-9+.-]*:/i.test(v)) v="https://"+v; try{ const u=new URL(v); return /^https?:$/.test(u.protocol)?u.href:""; }catch{ return ""; } };
 const linkName=(url,name)=>{ if(name) return name; try{ const u=new URL(url), last=decodeURIComponent(u.pathname.split("/").filter(Boolean).pop()||""); return last&&last.length<60?last:u.hostname.replace(/^www\./,""); }catch{ return url; } };
-const IC_P={"bell": "<path d=\"M4 11.4V7.6a4 4 0 0 1 8 0v3.8l1.3 1.3H2.7zM6.5 14a1.6 1.6 0 0 0 3 0\"/>", "link": "<path d=\"M6.7 9.3a2.6 2.6 0 0 0 3.7 0l2.3-2.3a2.6 2.6 0 0 0-3.7-3.7l-.9.9M9.3 6.7a2.6 2.6 0 0 0-3.7 0L3.3 9a2.6 2.6 0 0 0 3.7 3.7l.9-.9\"/>", "table": "<rect x=\"2\" y=\"2.8\" width=\"12\" height=\"10.4\" rx=\"1.4\"/><path d=\"M2 6.3h12M2 9.8h12M6.2 2.8v10.4M10.2 2.8v10.4\"/>", "pause": "<path d=\"M5.4 3.4v9.2M10.6 3.4v9.2\"/>", "sun": "<circle cx=\"8\" cy=\"8\" r=\"2.9\"/><path d=\"M8 1.6v1.5M8 12.9v1.5M1.6 8h1.5M12.9 8h1.5M3.5 3.5l1 1M11.5 11.5l1 1M3.5 12.5l1-1M11.5 4.5l1-1\"/>", "moon": "<path d=\"M13.2 9.6A5.6 5.6 0 0 1 6.4 2.8a5.6 5.6 0 1 0 6.8 6.8z\"/>", "monitor": "<rect x=\"1.8\" y=\"2.6\" width=\"12.4\" height=\"8.6\" rx=\"1.3\"/><path d=\"M5.6 14h4.8M8 11.2V14\"/>", "cols": "<rect x=\"1.8\" y=\"2.6\" width=\"12.4\" height=\"10.8\" rx=\"1.3\"/><path d=\"M6.4 2.6v10.8\"/>", "rows": "<rect x=\"1.8\" y=\"2.6\" width=\"12.4\" height=\"10.8\" rx=\"1.3\"/><path d=\"M1.8 7.4h12.4\"/>", "timer": "<circle cx=\"8\" cy=\"9\" r=\"5.2\"/><path d=\"M8 9V6.4M6.3 1.8h3.4M12.1 4.7l1-1\"/>", "image": "<rect x=\"2\" y=\"3\" width=\"12\" height=\"10\" rx=\"1.6\"/><circle cx=\"5.7\" cy=\"6.4\" r=\"1.1\"/><path d=\"M2.4 11.6l3.6-3.3 2.6 2.3 2-1.7 3 2.6\"/>", "trash": "<path d=\"M2.8 4.4h10.4M6.4 4.4V2.8h3.2v1.6M4.3 4.4l.6 8.8h6.2l.6-8.8M6.9 7v4.2M9.1 7v4.2\"/>", "x": "<path d=\"M4 4l8 8M12 4l-8 8\"/>", "star": "<path d=\"M8 1.9l1.85 3.85 4.2.55-3.07 2.92.78 4.17L8 11.35 4.24 13.4l.78-4.17L1.95 6.3l4.2-.55z\"/>", "check": "<path d=\"M3 8.6l3.1 3L13 4.6\"/>", "zap": "<path d=\"M9 1.6L3.6 9H8l-1 5.4L12.4 7H8z\"/>", "cal": "<rect x=\"2\" y=\"3\" width=\"12\" height=\"11\" rx=\"1.6\"/><path d=\"M2 6.6h12M5.4 1.6v2.8M10.6 1.6v2.8\"/>", "hl": "<path d=\"M10 2.2l3.8 3.8-6.3 6.3H3.7V8.5z\"/><path d=\"M2.2 14.3h6\"/>", "go": "<path d=\"M5 11l6-6M6.2 5H11v4.8\"/>", "rep": "<path d=\"M2.6 7.2V6.4A2.2 2.2 0 0 1 4.8 4.2h8.2M11 2.2l2 2-2 2M13.4 8.8v.8a2.2 2.2 0 0 1-2.2 2.2H3M5 13.8l-2-2 2-2\"/>", "book": "<path d=\"M3 3.2A1.6 1.6 0 0 1 4.6 1.6H13v10.6H4.6A1.6 1.6 0 0 0 3 13.8z\"/><path d=\"M3 13.8a1.6 1.6 0 0 0 1.6 1.6H13v-3.2\"/>", "plus": "<path d=\"M8 3v10M3 8h10\"/>", "edit": "<path d=\"M10.4 2.6l3 3L6 13H3v-3z\"/>", "up": "<path d=\"M8 13V3.4M4 7l4-4 4 4\"/>", "side": "<rect x=\"2\" y=\"2.6\" width=\"12\" height=\"10.8\" rx=\"1.6\"/><path d=\"M9.6 2.6v10.8\"/>", "board": "<rect x=\"2\" y=\"2.6\" width=\"12\" height=\"10.8\" rx=\"1.6\"/><path d=\"M6 2.6v10.8M10 2.6v10.8\"/>", "gear": "<circle cx=\"8\" cy=\"8\" r=\"2.2\"/><path d=\"M8 1.6v1.8M8 12.6v1.8M1.6 8h1.8M12.6 8h1.8M3.5 3.5l1.3 1.3M11.2 11.2l1.3 1.3M3.5 12.5l1.3-1.3M11.2 4.8l1.3-1.3\"/>", "down": "<path d=\"M8 2.4v8M4.6 7.2L8 10.6l3.4-3.4M3 13.6h10\"/>", "upl": "<path d=\"M8 10.6v-8M4.6 5.8L8 2.4l3.4 3.4M3 13.6h10\"/>", "play": "<path d=\"M5 3.4v9.2L12.2 8z\"/>", "circle": "<circle cx=\"8\" cy=\"8\" r=\"5\"/>", "sum": "<path d=\"M12 3H4.2L8.6 8l-4.4 5H12\"/>", "alert": "<circle cx=\"8\" cy=\"8\" r=\"6\"/><path d=\"M8 4.8v3.6M8 11h.01\"/>", "head": "<path d=\"M2.6 10.4V8a5.4 5.4 0 0 1 10.8 0v2.4\"/><rect x=\"2.4\" y=\"9.4\" width=\"2.8\" height=\"4.2\" rx=\"1\"/><rect x=\"10.8\" y=\"9.4\" width=\"2.8\" height=\"4.2\" rx=\"1\"/>", "tv": "<rect x=\"2\" y=\"3.2\" width=\"12\" height=\"8.6\" rx=\"1.6\"/><path d=\"M5.8 14.2h4.4\"/>", "arr": "<path d=\"M3 8h9.6M9 4.4L12.6 8 9 11.6\"/>"};
+const IC_P={"target": "<circle cx=\"8\" cy=\"8\" r=\"6\"/><circle cx=\"8\" cy=\"8\" r=\"3\"/><circle cx=\"8\" cy=\"8\" r=\".7\" fill=\"currentColor\"/>", "expand": "<path d=\"M2.5 6V2.5H6M10 2.5h3.5V6M13.5 10v3.5H10M6 13.5H2.5V10\"/>", "bell": "<path d=\"M4 11.4V7.6a4 4 0 0 1 8 0v3.8l1.3 1.3H2.7zM6.5 14a1.6 1.6 0 0 0 3 0\"/>", "link": "<path d=\"M6.7 9.3a2.6 2.6 0 0 0 3.7 0l2.3-2.3a2.6 2.6 0 0 0-3.7-3.7l-.9.9M9.3 6.7a2.6 2.6 0 0 0-3.7 0L3.3 9a2.6 2.6 0 0 0 3.7 3.7l.9-.9\"/>", "table": "<rect x=\"2\" y=\"2.8\" width=\"12\" height=\"10.4\" rx=\"1.4\"/><path d=\"M2 6.3h12M2 9.8h12M6.2 2.8v10.4M10.2 2.8v10.4\"/>", "pause": "<path d=\"M5.4 3.4v9.2M10.6 3.4v9.2\"/>", "sun": "<circle cx=\"8\" cy=\"8\" r=\"2.9\"/><path d=\"M8 1.6v1.5M8 12.9v1.5M1.6 8h1.5M12.9 8h1.5M3.5 3.5l1 1M11.5 11.5l1 1M3.5 12.5l1-1M11.5 4.5l1-1\"/>", "moon": "<path d=\"M13.2 9.6A5.6 5.6 0 0 1 6.4 2.8a5.6 5.6 0 1 0 6.8 6.8z\"/>", "monitor": "<rect x=\"1.8\" y=\"2.6\" width=\"12.4\" height=\"8.6\" rx=\"1.3\"/><path d=\"M5.6 14h4.8M8 11.2V14\"/>", "cols": "<rect x=\"1.8\" y=\"2.6\" width=\"12.4\" height=\"10.8\" rx=\"1.3\"/><path d=\"M6.4 2.6v10.8\"/>", "rows": "<rect x=\"1.8\" y=\"2.6\" width=\"12.4\" height=\"10.8\" rx=\"1.3\"/><path d=\"M1.8 7.4h12.4\"/>", "timer": "<circle cx=\"8\" cy=\"9\" r=\"5.2\"/><path d=\"M8 9V6.4M6.3 1.8h3.4M12.1 4.7l1-1\"/>", "image": "<rect x=\"2\" y=\"3\" width=\"12\" height=\"10\" rx=\"1.6\"/><circle cx=\"5.7\" cy=\"6.4\" r=\"1.1\"/><path d=\"M2.4 11.6l3.6-3.3 2.6 2.3 2-1.7 3 2.6\"/>", "trash": "<path d=\"M2.8 4.4h10.4M6.4 4.4V2.8h3.2v1.6M4.3 4.4l.6 8.8h6.2l.6-8.8M6.9 7v4.2M9.1 7v4.2\"/>", "x": "<path d=\"M4 4l8 8M12 4l-8 8\"/>", "star": "<path d=\"M8 1.9l1.85 3.85 4.2.55-3.07 2.92.78 4.17L8 11.35 4.24 13.4l.78-4.17L1.95 6.3l4.2-.55z\"/>", "check": "<path d=\"M3 8.6l3.1 3L13 4.6\"/>", "zap": "<path d=\"M9 1.6L3.6 9H8l-1 5.4L12.4 7H8z\"/>", "cal": "<rect x=\"2\" y=\"3\" width=\"12\" height=\"11\" rx=\"1.6\"/><path d=\"M2 6.6h12M5.4 1.6v2.8M10.6 1.6v2.8\"/>", "hl": "<path d=\"M10 2.2l3.8 3.8-6.3 6.3H3.7V8.5z\"/><path d=\"M2.2 14.3h6\"/>", "go": "<path d=\"M5 11l6-6M6.2 5H11v4.8\"/>", "rep": "<path d=\"M2.6 7.2V6.4A2.2 2.2 0 0 1 4.8 4.2h8.2M11 2.2l2 2-2 2M13.4 8.8v.8a2.2 2.2 0 0 1-2.2 2.2H3M5 13.8l-2-2 2-2\"/>", "book": "<path d=\"M3 3.2A1.6 1.6 0 0 1 4.6 1.6H13v10.6H4.6A1.6 1.6 0 0 0 3 13.8z\"/><path d=\"M3 13.8a1.6 1.6 0 0 0 1.6 1.6H13v-3.2\"/>", "plus": "<path d=\"M8 3v10M3 8h10\"/>", "edit": "<path d=\"M10.4 2.6l3 3L6 13H3v-3z\"/>", "up": "<path d=\"M8 13V3.4M4 7l4-4 4 4\"/>", "side": "<rect x=\"2\" y=\"2.6\" width=\"12\" height=\"10.8\" rx=\"1.6\"/><path d=\"M9.6 2.6v10.8\"/>", "board": "<rect x=\"2\" y=\"2.6\" width=\"12\" height=\"10.8\" rx=\"1.6\"/><path d=\"M6 2.6v10.8M10 2.6v10.8\"/>", "gear": "<circle cx=\"8\" cy=\"8\" r=\"2.2\"/><path d=\"M8 1.6v1.8M8 12.6v1.8M1.6 8h1.8M12.6 8h1.8M3.5 3.5l1.3 1.3M11.2 11.2l1.3 1.3M3.5 12.5l1.3-1.3M11.2 4.8l1.3-1.3\"/>", "down": "<path d=\"M8 2.4v8M4.6 7.2L8 10.6l3.4-3.4M3 13.6h10\"/>", "upl": "<path d=\"M8 10.6v-8M4.6 5.8L8 2.4l3.4 3.4M3 13.6h10\"/>", "play": "<path d=\"M5 3.4v9.2L12.2 8z\"/>", "circle": "<circle cx=\"8\" cy=\"8\" r=\"5\"/>", "sum": "<path d=\"M12 3H4.2L8.6 8l-4.4 5H12\"/>", "alert": "<circle cx=\"8\" cy=\"8\" r=\"6\"/><path d=\"M8 4.8v3.6M8 11h.01\"/>", "head": "<path d=\"M2.6 10.4V8a5.4 5.4 0 0 1 10.8 0v2.4\"/><rect x=\"2.4\" y=\"9.4\" width=\"2.8\" height=\"4.2\" rx=\"1\"/><rect x=\"10.8\" y=\"9.4\" width=\"2.8\" height=\"4.2\" rx=\"1\"/>", "tv": "<rect x=\"2\" y=\"3.2\" width=\"12\" height=\"8.6\" rx=\"1.6\"/><path d=\"M5.8 14.2h4.4\"/>", "arr": "<path d=\"M3 8h9.6M9 4.4L12.6 8 9 11.6\"/>"};
 const ic=(n,c)=>`<svg class="ic${c?" "+c:""}" viewBox="0 0 16 16" aria-hidden="true">${IC_P[n]}</svg>`;
 const ICON_LIST='<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M6 4h8M6 8h8M6 12h8"/><circle cx="2.6" cy="4" r=".9" fill="currentColor" stroke="none"/><circle cx="2.6" cy="8" r=".9" fill="currentColor" stroke="none"/><circle cx="2.6" cy="12" r=".9" fill="currentColor" stroke="none"/></svg>';
 const ICON_UNDO='<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3.2 6.2A5.2 5.2 0 1 1 3 9.5"/><path d="M3 2.6v3.8h3.8"/></svg>';
@@ -189,9 +190,12 @@ $("#kbCols").addEventListener("dragleave",e=>{ const col=e.target.closest(".kbco
 $("#kbCols").addEventListener("drop",e=>{ const col=e.target.closest(".kbcol"); if(!col) return; e.preventDefault(); col.classList.remove("over"); kbMove(e.dataTransfer.getData("text/plain"),col.dataset.col); });
 function setStatus(t,st){
   t.status=st; const closed=st==="done"||st==="cancelled";
-  if(closed&&!t.completed){ if(T.track&&T.track.id===t.id) stopTrack(); t.completed=true; t.completedAt=Date.now();
+  if(closed&&!t.completed){ const fo=S.focus||[], wasNow=fo[0]===t.id, wasRun=!!(T.track&&T.track.id===t.id&&T.running);
+    if(T.track&&T.track.id===t.id) stopTrack(); t.completed=true; t.completedAt=Date.now();
+    if(fo.includes(t.id)){ S.focus=fo.filter(x=>x!==t.id); const nx=focoIds()[0];
+      if(wasNow&&nx){ S.activeTaskId=nx; if(wasRun) setTimeout(()=>{ if(!T.track&&taskById(nx)){ startTrack(nx); toast("Sigues con: "+taskById(nx).title); } },0); } }
     if(st==="done"&&t.rec&&REC[t.rec]&&!t.recNext) recSpawn(t);
-    if(S.activeTaskId===t.id){ const nx=S.tasks.find(x=>!x.completed); S.activeTaskId=nx?nx.id:null; } }
+    if(S.activeTaskId===t.id){ const nx=focoIds()[0]?taskById(focoIds()[0]):S.tasks.find(x=>!x.completed); S.activeTaskId=nx?nx.id:null; } }
   else if(!closed&&t.completed){ t.completed=false; t.completedAt=null; }
 }
 // recurring tasks: closing one as Hecha creates the next occurrence
@@ -256,11 +260,12 @@ function render(){ applyLook();
     return `<li class="task ${t.completed?(t.status==="cancelled"?"cancelled":"done"):""} ${trk?"tracking":""} ${!trk&&t.id===S.activeTaskId?"active":""}" data-id="${t.id}">
       ${t.completed?"<span style=\"width:28px\"></span>":`<button class="btn track ${trk?"on":""}" type="button" data-act="track" aria-label="${trk?"Detener":"Iniciar"}" title="${trk?"Detener":"Iniciar"}">${trk?ICON_STOP:ICON_PLAY}</button>`}
       <div style="min-width:0"><div class="trow"><button class="star ${t.star?"on":""}" type="button" data-act="star" aria-pressed="${!!t.star}" aria-label="${t.star?"Quitar de Hoy":"Marcar para hoy"}" title="${t.star?"Quitar de Hoy":"Marcar para hoy"}">${ic("star",t.star?"fill":"")}</button><div class="t" data-act="edit" title="Editar tarea">${hl(t.title)}</div></div>
-        <div class="meta"><label class="st st-${t.status||"todo"}" title="Estado">${ST_ICON[t.status||"todo"]}<select data-status aria-label="Estado">${statusOpts(t.status||"todo")}</select></label>${sig(crit)}${t.tag?`<span class="tag">${esc(t.tag)}</span>`:""}${du&&!t.completed?`<span class="due ${du.cls}">${du.txt}</span>`:""}${t.alert&&!t.completed?alChip(t):""}${t.rec?`<span class="rec" title="Se repite: ${REC[t.rec]}. Al cerrarla se crea la siguiente.">${ic("rep")} ${REC[t.rec]}</span>`:""}${t.jday?`<button class="nlink" type="button" data-act="jday" title="Ver la línea de la bitácora donde nació esta tarea">Bitácora ${esc(jLabel(t.jday))}</button>`:""}${liveSpent(t)>0||trk?`<span class="spent" data-spent="${t.id}" title="Tiempo invertido en la tarea">${clock(liveSpent(t))}</span>`:""}${nN?`<button class="nlink" type="button" data-act="qnote" title="Ver notas de la tarea">${nN} nota${nN>1?"s":""}</button>`:""}${todos.length?(t.completed?`<span class="ico has-todo" title="${todos.length} to-do (${tdDone} hecho${tdDone!==1?"s":""})" aria-label="Tiene to-do">${ICON_LIST}</span>`
+        <div class="meta"><label class="st st-${t.status||"todo"}" title="Estado">${ST_ICON[t.status||"todo"]}<select data-status aria-label="Estado">${statusOpts(t.status||"todo")}</select></label>${sig(crit)}${t.tag?`<span class="tag">${esc(t.tag)}</span>`:""}${du&&!t.completed?`<span class="due ${du.cls}">${du.txt}</span>`:""}${!t.completed&&(S.focus||[]).includes(t.id)?`<span class="fochip" title="Está en Foco">${ic("target")} ${FOCO_LB[S.focus.indexOf(t.id)]}</span>`:""}${t.alert&&!t.completed?alChip(t):""}${t.rec?`<span class="rec" title="Se repite: ${REC[t.rec]}. Al cerrarla se crea la siguiente.">${ic("rep")} ${REC[t.rec]}</span>`:""}${t.jday?`<button class="nlink" type="button" data-act="jday" title="Ver la línea de la bitácora donde nació esta tarea">Bitácora ${esc(jLabel(t.jday))}</button>`:""}${liveSpent(t)>0||trk?`<span class="spent" data-spent="${t.id}" title="Tiempo invertido en la tarea">${clock(liveSpent(t))}</span>`:""}${nN?`<button class="nlink" type="button" data-act="qnote" title="Ver notas de la tarea">${nN} nota${nN>1?"s":""}</button>`:""}${todos.length?(t.completed?`<span class="ico has-todo" title="${todos.length} to-do (${tdDone} hecho${tdDone!==1?"s":""})" aria-label="Tiene to-do">${ICON_LIST}</span>`
   :`<button class="ico has-todo tdtog" type="button" data-act="todo-toggle" aria-expanded="${!t.todoMin}" title="${t.todoMin?"Mostrar":"Ocultar"} la lista to-do · ${tdDone} de ${todos.length} hechos">${ICON_LIST} ${tdDone}/${todos.length}<span class="car" aria-hidden="true">${t.todoMin?"▸":"▾"}</span></button>`):""}</div>
       <div class="acts">
         ${t.completed?"":`<button class="icon ico" type="button" data-act="todo" aria-label="Agregar to-do" title="Agregar to-do">${ICON_LIST}</button>
         <button class="icon ico" type="button" data-act="qnote" aria-label="Agregar nota" title="Agregar nota">${ICON_NOTE}</button>
+        <button class="icon ico ${(S.focus||[]).includes(t.id)?"on":""}" type="button" data-act="foco" aria-label="Foco" title="${(S.focus||[]).includes(t.id)?"Sacar de Foco":"Agregar a Foco"}">${ic("target")}</button>
         <button class="icon ico" type="button" data-act="alert" aria-label="Alerta" title="${t.alert?"Cambiar la alerta":"Agregar una alerta"}">${ic("bell")}</button>`}
         <button class="icon ico" type="button" data-act="link" aria-label="Adjuntar link" title="Adjuntar link">${ic("link")}</button>
         <button class="icon" type="button" data-act="edit" aria-label="Editar" title="Editar">${ic("edit")}</button>
@@ -271,6 +276,7 @@ function render(){ applyLook();
       ${(t.links||[]).length||linkAdd===t.id?`<div class="tlinks">${(t.links||[]).map(l=>`<span class="tlink" data-link="${l.id}"><a href="${esc(l.url)}" target="_blank" rel="noopener noreferrer" title="${esc(l.url)}">${ic("link")}${esc(l.name)}</a><button class="x" type="button" data-act="link-del" aria-label="Quitar link ${esc(l.name)}" title="Quitar link">${ic("x")}</button></span>`).join("")}
         ${linkAdd===t.id?`<div class="tladd"><input type="url" id="tl-url" placeholder="Pega el link (OneDrive, SharePoint, web…)" aria-label="Link"><input type="text" id="tl-name" placeholder="Nombre (opcional)" aria-label="Nombre del link"><button class="btn sm" type="button" data-act="link-cancel">Cancelar</button><button class="btn sm primary" type="button" data-act="link-save">Adjuntar</button></div>`:""}</div>`:""}
       ${alertAdd===t.id&&!t.completed?alForm(t):""}
+      ${focoAsk===t.id&&!t.completed?focoAskHtml(t):""}
       ${editing===t.id?`<div class="edit">
         <label class="fld wide"><span>Tarea</span><input type="text" id="e-title" value="${esc(t.title)}"></label>
         <label class="fld"><span>Proyecto</span><input type="text" id="e-tag" value="${esc(t.tag||"")}" list="tags"></label>
@@ -300,7 +306,8 @@ function render(){ applyLook();
   const a=T.track&&taskById(T.track.id);
   $("#now").innerHTML=a?`<span style="min-width:0;overflow-wrap:anywhere">Avanzando <b>${esc(a.title)}</b> · <span class="spent" data-spent="${a.id}">${clock(liveSpent(a))}</span></span><span style="display:flex;gap:4px"><button class="btn ghost sm" type="button" id="stopA">Detener</button><button class="btn ghost sm" type="button" id="markA">Marcar hecha</button></span>`
     :"";
-  $("#now").hidden=!a;
+  $("#now").hidden=!a||(S.focus||[]).includes(a.id);
+  focoRender();
   // notes
   $("#nTask").innerHTML=`<option value="">Sin tarea vinculada</option>`+S.tasks.filter(t=>!t.completed).map(t=>`<option value="${t.id}" ${t.id===S.activeTaskId?"selected":""}>${esc(t.title)}</option>`).join("");
   const fmtN=n=>`${new Date(n.createdAt).toLocaleDateString("es",{day:"numeric",month:"short"})} ${hhmm(n.createdAt)}`;
@@ -383,6 +390,9 @@ $("#tasks").addEventListener("click",e=>{
   if(a==="todo-toggle"){ t.todoMin=!t.todoMin; if(t.todoMin&&todoAdd===id) todoAdd=null; commit(); return; }
   if(a==="link"){ linkAdd=linkAdd===id?null:id; render(); const el=$("#tl-url"); el&&el.focus(); return; }
   if(a==="link-cancel"){ linkAdd=null; document.activeElement.blur(); render(); return; }
+  if(a==="foco"){ if((S.focus||[]).includes(id)){ focoOut(id); toast("Sacada de Foco"); } else focoAdd(id); return; }
+  if(a==="foco-rep"){ const f=focoIds(), i=+b.dataset.i, old=f[i]; f[i]=id; S.focus=f; focoAsk=null; if(i===0&&T.track&&T.track.id===old&&T.running) startTrack(id); else commit(); toast("Agregada a Foco: "+FOCO_LB[i]); return; }
+  if(a==="foco-cancel"){ focoAsk=null; render(); return; }
   if(a==="alert"){ alertAdd=alertAdd===id?null:id; render(); const el=$("#ta-at"); el&&el.focus(); return; }
   if(a==="alert-cancel"){ alertAdd=null; document.activeElement.blur(); render(); return; }
   if(a==="alert-quick"){ alSave(t,alQuick(b.dataset.q,t)); return; }
@@ -522,6 +532,8 @@ document.addEventListener("keydown",e=>{
   else if(e.key==="s"||e.key==="S") finish(true);
   else if(e.key==="i"||e.key==="I") interruption();
   else if(e.key==="c"||e.key==="C"){ e.preventDefault(); calOpen(); }
+  else if(e.key==="f"||e.key==="F"){ e.preventDefault(); focoView(!document.body.classList.contains("focoview")); }
+  else if(e.key==="Escape"&&document.body.classList.contains("focoview")) focoView(false);
 });
 
 // settings
@@ -1896,6 +1908,50 @@ const BG_DEF="montana-retro";
 function renderBgPick(){ const id0=S.settings.bg||BG_DEF, id=BGS.some(b=>b.id===id0)?id0:BGS[0].id;
   $("#bgPick").innerHTML=BGS.map(b=>`<button type="button" class="bgopt" data-bg="${b.id}" aria-pressed="${b.id===id}" title="${esc(b.name)}"><img src="${b.src}" alt=""><span>${esc(b.name)}</span></button>`).join(""); }
 $("#bgPick").addEventListener("click",e=>{ const b=e.target.closest("[data-bg]"); if(!b) return; S.settings.bg=b.dataset.bg; renderBgPick(); commit(); });
+
+// ---------- Foco: up to 3 tasks in order. Ahora is the one on the clock, Siguiente and Después come next ----------
+var FOCO_LB=["Ahora","Siguiente","Después"];
+function focoIds(){ const f=(S.focus||[]).filter((id,i,a)=>a.indexOf(id)===i&&taskById(id)&&!taskById(id).completed).slice(0,3); S.focus=f; return f; }
+function focoSug(){ const f=focoIds(); const c=S.tasks.filter(t=>!t.completed&&t.star&&!f.includes(t.id)).sort((a,b)=>(a.order??a.createdAt)-(b.order??b.createdAt)); return c[0]?c[0].id:null; }
+function focoAdd(id){ const f=focoIds(); if(f.includes(id)) return;
+  if(f.length>=3){ focoAsk=id; render(); return; }
+  f.push(id); S.focus=f; if(f.length===1) S.activeTaskId=id; focoAsk=null; commit(); toast("Agregada a Foco: "+FOCO_LB[f.length-1]); }
+function focoOut(id){ S.focus=focoIds().filter(x=>x!==id); if(focoAsk===id) focoAsk=null; commit(); }
+function focoTop(id){ const f=focoIds(), was=f[0]; S.focus=[id,...f.filter(x=>x!==id)];
+  if(T.track&&T.track.id===was&&T.running) startTrack(id); else { S.activeTaskId=id; commit(); } }
+function focoAskHtml(t){ const f=focoIds();
+  return `<div class="foask"><span><b>Foco está lleno (3 de 3).</b> ¿Qué tarea reemplazo por «${esc(t.title)}»?</span><div class="r">${f.map((id,i)=>`<button class="btn sm" type="button" data-act="foco-rep" data-i="${i}" title="${esc(taskById(id).title)}">${i+1} · ${esc(taskById(id).title.length>24?taskById(id).title.slice(0,23)+"…":taskById(id).title)}</button>`).join("")}<button class="btn sm ghost" type="button" data-act="foco-cancel">Cancelar</button></div></div>`; }
+function focoRender(){ const el=$("#foco"); if(!el) return; const f=focoIds(), view=document.body.classList.contains("focoview"), trkId=T.track&&T.track.id, sug=focoSug();
+  const sugB=sug?` <button class="nlink" type="button" data-fo="sug" title="${esc(taskById(sug).title)}">sugerir de ★ Hoy</button>`:"";
+  let h=`<div class="fohead"><span class="fot">${ic("target")} Foco</span><span class="foc">${f.length} de 3</span><span style="flex:1"></span><button class="btn sm ghost" type="button" data-fo="view" title="${view?"Volver a la vista normal (F o Esc)":"Ver solo el reloj y Foco (F)"}">${ic("expand")} ${view?"Salir de vista Foco":"Vista Foco"}</button></div>`;
+  if(!f.length) h+=`<div class="foempty">Elige hasta 3 tareas: la que haces <b>ahora</b> y las <b>dos que vienen</b>. Usa ${ic("target")} en cada tarea de la lista${sug?", o":"."}${sugB}</div>`;
+  else for(let i=0;i<3;i++){ const id=f[i], t=id&&taskById(id);
+    if(!t){ h+=`<div class="foslot empty">${FOCO_LB[i]}: espacio libre.${sugB}</div>`; continue; }
+    const du=dueInfo(t.due), trk=trkId===t.id, todos=(t.todos||[]).filter(x=>!x.done);
+    h+=`<div class="foslot ${i===0?"fonow":""}" data-id="${t.id}"><div class="fotop"><span class="fon">${i+1}</span><div class="fob"><div class="fol">${FOCO_LB[i]}${trk?" · en curso":""}</div><button class="fott" type="button" data-fo="go" title="Abrir la tarea">${esc(t.title)}</button><div class="fom">${t.tag?esc(t.tag):""}${du?`${t.tag?" · ":""}<span class="due ${du.cls}">${du.txt}</span>`:""}</div></div>
+      <span class="foa">${i===0?`<button class="icon fplay" type="button" data-fo="track" title="${trk?"Detener":"Iniciar"}" aria-label="${trk?"Detener":"Iniciar"}">${trk?ICON_STOP:ICON_PLAY}</button><button class="icon" type="button" data-fo="done" title="Cerrar la tarea: sube la siguiente" aria-label="Cerrar la tarea">${ic("check")}</button>`:`<button class="icon" type="button" data-fo="top" title="Pasar a Ahora" aria-label="Pasar a Ahora">${ic("up")}</button>`}<button class="icon" type="button" data-fo="out" title="Sacar de Foco (sigue en tu lista)" aria-label="Sacar de Foco">${ic("x")}</button></span></div>
+      ${i>0&&todos.length?`<ul class="fotd">${todos.slice(0,3).map(x=>`<li>${esc(x.text)}</li>`).join("")}${todos.length>3?`<li class="more">y ${todos.length-3} más</li>`:""}</ul>`:""}
+      ${i>0?`<input class="foidea" type="text" placeholder="Anotar idea para esta tarea… (Enter)" aria-label="Idea para ${esc(t.title)}">`:""}</div>`; }
+  const ae=document.activeElement; if(ae&&ae.classList&&ae.classList.contains("foidea")&&el.contains(ae)&&ae.value) return; // keep a half-typed idea
+  if(el.dataset.h!==h){ el.dataset.h=h; el.innerHTML=h; } }
+function focoView(on){ document.body.classList.toggle("focoview",on); lsSet("pp-focoview",on);
+  if(on){ if($("#journal").classList.contains("side")) jSideClose(); tSideClose(); window.scrollTo({top:0}); }
+  const d=$("#foco"); d.dataset.h=""; focoRender(); }
+$("#foco").addEventListener("click",e=>{ const b=e.target.closest("[data-fo]"); if(!b) return; const a=b.dataset.fo, sl=b.closest("[data-id]"), id=sl&&sl.dataset.id, t=id&&taskById(id);
+  if(a==="view"){ focoView(!document.body.classList.contains("focoview")); return; }
+  if(a==="sug"){ const s=focoSug(); if(s) focoAdd(s); return; }
+  if(!t) return;
+  if(a==="go"){ if(document.body.classList.contains("focoview")) focoView(false); goToTask(id); }
+  else if(a==="track"){ if(T.track&&T.track.id===id){ stopTrack(); commit(); } else startTrack(id); }
+  else if(a==="done"){ setStatus(t,"done"); commit(); toast("Tarea cerrada"); }
+  else if(a==="top") focoTop(id);
+  else if(a==="out"){ focoOut(id); toast("Sacada de Foco (sigue en tu lista)"); } });
+$("#foco").addEventListener("keydown",e=>{ if(!e.target.classList.contains("foidea")) return;
+  if(e.key==="Escape"){ e.target.value=""; e.target.blur(); return; }
+  if(e.key!=="Enter") return; e.preventDefault(); const v=e.target.value.trim(), t=taskById(e.target.closest("[data-id]").dataset.id); if(!v||!t) return;
+  (t.todos=t.todos||[]).push({id:uid(),text:v,done:false}); e.target.value=""; commit(); toast("Idea guardada como to-do de «"+t.title+"»");
+  const n=$(`#foco [data-id="${t.id}"] .foidea`); n&&n.focus(); });
+if(lsGet("pp-focoview")) document.body.classList.add("focoview");
 
 // ---------- task alerts: notification, sound and blinking tab title while the app is open ----------
 var BASE_TITLE="Tareas", alBlinkT=null, ALQ=[];
