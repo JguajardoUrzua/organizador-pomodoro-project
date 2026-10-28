@@ -1775,39 +1775,21 @@ function confirmDel(msg,onYes,opt={}){ const d=$("#confirmDlg"); $("#confirmMsg"
 let toastT=null;
 function toast(m){ const el=$("#toast"); el.textContent=m; el.hidden=false; clearTimeout(toastT); toastT=setTimeout(()=>el.hidden=true,2600); }
 
-// ---------- radios: live stations from the open radio-browser.info directory ----------
+// ---------- radios: live stations from the TuneIn directory ----------
 // The Claude view cannot reach outside servers, so radios live only in the local copy and the installed app.
 const RAD_ON=EMBED; var radNowName=""; // shown in the Música header
 const RAD_C=[["CL","Chile"],["AR","Argentina"],["PE","Perú"],["MX","México"],["CO","Colombia"],["UY","Uruguay"],["BO","Bolivia"],["EC","Ecuador"],["PY","Paraguay"],["VE","Venezuela"],["ES","España"],["US","Estados Unidos"]];
-const RAD_SRV=["de1","nl1","at1","de2","fi1"].map(x=>`https://${x}.api.radio-browser.info`);
-const RAD={audio:null,cur:null,list:[],shown:30,state:"",q:"",seq:0,cache:{},src:lsGet("pp-radsrc")==="ti"?"ti":"rb"};
-const radCanHls=!!document.createElement("audio").canPlayType("application/vnd.apple.mpegurl");
+const RAD={audio:null,cur:null,list:[],shown:30,state:"",q:"",seq:0,cache:{}};
 const radSecure=location.protocol==="https:";
-async function radApi(path){ let last; for(const base of RAD_SRV){ try{ const r=await fetch(base+path,{headers:{Accept:"application/json"}}); if(r.ok) return await r.json(); last=new Error(r.status); }catch(e){ last=e; } } throw last||new Error("sin servidor"); }
-// stations this page can actually play: working, not HLS (except Safari), https when the page is https
-function radUsable(x){ const u=x.url_resolved||x.url||""; return x.lastcheckok!==0&&u&&(!x.hls||radCanHls)&&(!radSecure||u.startsWith("https:")); }
-const radStation=x=>({id:x.stationuuid,name:(x.name||"").trim()||"Sin nombre",url:x.url_resolved||x.url,logo:x.favicon&&(!radSecure||x.favicon.startsWith("https:"))?x.favicon:"",tags:(x.tags||"").split(",").map(t=>t.trim()).filter(Boolean).slice(0,2).join(", "),city:(x.state||"").trim(),br:x.bitrate||0});
 async function radLoad(){
   const cc=S.settings.radCountry||radDefCountry(), q=RAD.q.trim(), key=cc+"|"+fold(q), my=++RAD.seq;
   if(RAD.cache[key]){ RAD.list=RAD.cache[key]; RAD.state=""; radRender(); return; }
   RAD.state="loading"; radRender();
-  const order=RAD.src==="ti"?["ti","rb"]:["rb","ti"];
-  for(const src of order){
-    try{
-      const list=src==="rb"?await rbList(cc,q):await tiList(cc,q); if(my!==RAD.seq) return;
-      if(!list.length&&src!==order[order.length-1]) continue;
-      if(RAD.src!==src){ RAD.src=src; lsSet("pp-radsrc",src); }
-      RAD.cache[key]=list; RAD.list=list; RAD.state=""; RAD.shown=30; radRender(); return;
-    }catch(e){ if(my!==RAD.seq) return; }
-  }
+  try{ const list=await tiList(cc,q); if(my!==RAD.seq) return; RAD.cache[key]=list; RAD.list=list; RAD.state=""; RAD.shown=30; radRender(); return; }
+  catch(e){ if(my!==RAD.seq) return; }
   RAD.list=[]; RAD.state="error"; RAD.shown=30; radRender();
 }
-async function rbList(cc,q){
-  const qs=new URLSearchParams({countrycode:cc,hidebroken:"true",order:"clickcount",reverse:"true",limit:q?"120":"200"}); if(q) qs.set("name",q);
-  const raw=await radApi("/json/stations/search?"+qs), seen=new Set(), list=[];
-  raw.filter(radUsable).forEach(x=>{ const st=radStation(x), k=fold(st.name).replace(/\s+/g," "); if(seen.has(k)) return; seen.add(k); list.push(st); });
-  return list; }
-// ---- TuneIn (opml.radiotime.com): used when radio-browser.info cannot be reached ----
+// ---- TuneIn (opml.radiotime.com) ----
 const TI="https://opml.radiotime.com", tiHttps=u=>String(u||"").replace(/^http:\/\//i,"https://");
 const TI_CONT={CL:"r101219",AR:"r101219",PE:"r101219",CO:"r101219",UY:"r101219",BO:"r101219",EC:"r101219",PY:"r101219",VE:"r101219",MX:"r101218",US:"r101218",ES:"r101217"};
 const TI_NAMES={CL:["chile"],AR:["argentina"],PE:["peru"],CO:["colombia"],UY:["uruguay"],BO:["bolivia"],EC:["ecuador"],PY:["paraguay"],VE:["venezuela"],MX:["mexico"],US:["united states","estados unidos","usa"],ES:["spain","espana"]};
@@ -1853,11 +1835,10 @@ function radRender(){
   if(favShow.length) h+=`<li class="sub">Favoritas</li>`+favShow.map(radRow).join("");
   const rest=RAD.list.filter(x=>!favIds.has(x.id));
   if(RAD.state==="loading") h+=`<li class="msg">Buscando emisoras…</li>`;
-  else if(RAD.state==="error") h+=`<li class="msg">No se pudo cargar la lista de radios (ni radio-browser.info ni TuneIn respondieron). Revisa tu conexión e inténtalo de nuevo.</li>`;
+  else if(RAD.state==="error") h+=`<li class="msg">No se pudo cargar la lista de radios de TuneIn. Revisa tu conexión e inténtalo de nuevo.</li>`;
   else if(!rest.length) h+=`<li class="msg">${q?`Ninguna emisora coincide con «${esc(RAD.q.trim())}».`:"No hay emisoras disponibles para este país."}</li>`;
   else h+=(favShow.length?`<li class="sub">${q?"Resultados":"Más escuchadas"}</li>`:"")+rest.slice(0,RAD.shown).map(radRow).join("");
   $("#radList").innerHTML=h;
-  $("#radSrc").innerHTML=RAD.src==="ti"?'Emisoras de <a href="https://tunein.com" target="_blank" rel="noopener noreferrer">TuneIn</a>.':'Emisoras de <a href="https://www.radio-browser.info" target="_blank" rel="noopener noreferrer">radio-browser.info</a>, un directorio abierto.';
   $("#radMore").hidden=RAD.state!==""||rest.length<=RAD.shown;
   const n=$("#radNow"), c=RAD.cur;
   n.hidden=!c;
@@ -1880,7 +1861,6 @@ function radPlay(st){
   if(st.tune) tiStream(st).then(go).catch(()=>{ if(RAD.cur!==st) return; toast(`No se pudo conectar con ${st.name}. Prueba otra emisora.`); radStop(); });
   else go(st.url);
   if("mediaSession" in navigator) try{ navigator.mediaSession.metadata=new MediaMetadata({title:st.name,artist:"Radio en vivo",artwork:st.logo?[{src:st.logo}]:[]}); }catch{}
-  if(!st.tune) radApi("/json/url/"+encodeURIComponent(st.id)).catch(()=>{}); // counts the listen in the directory
   radNowName=st.name; ambUI(); radRender();
 }
 function radStop(){ if(RAD.audio){ RAD.audio.pause(); RAD.audio.removeAttribute("src"); RAD.audio.load(); } RAD.cur=null; radNowName=""; ambUI(); radRender(); }
