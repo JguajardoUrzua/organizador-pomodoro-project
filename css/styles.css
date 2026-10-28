@@ -245,6 +245,12 @@ dialog.cmdk{padding:0;width:min(620px,calc(100% - 32px));margin-top:10vh;overflo
 .cklist .l{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}
 .cklist .s{color:var(--ink-3);font-size:.78rem;white-space:nowrap;flex:none}
 .cklist mark{background:color-mix(in srgb,var(--focus) 30%,transparent);color:inherit;border-radius:2px}
+.tqdlg form{margin:0}
+.tqrow{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center;padding:10px 16px}
+.tqrow .chk{font-size:.9rem;color:var(--ink-2)}
+.cmdk .tqrow input[type=text]{flex:1 1 180px;width:auto;border:1px solid var(--line);border-radius:8px;font-size:.92rem;padding:7px 10px}
+.cmdk .tqrow input[type=checkbox]{width:auto;padding:0}
+.tqrow .tqh{color:var(--ink-3);font-size:.8rem}
 .cklist .none{color:var(--ink-3);padding:14px 10px;font-size:.9rem}
 .ckfoot{border-top:1px solid var(--line);padding:7px 14px;font-size:.75rem;color:var(--ink-3)}
 @media (max-width:600px){.ckhint{display:none}}

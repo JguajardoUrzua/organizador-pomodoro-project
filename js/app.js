@@ -533,6 +533,7 @@ document.addEventListener("keydown",e=>{
   else if(e.key==="i"||e.key==="I") interruption();
   else if(e.key==="c"||e.key==="C"){ e.preventDefault(); calOpen(); }
   else if(e.key==="f"||e.key==="F"){ e.preventDefault(); focoView(!document.body.classList.contains("focoview")); }
+  else if(e.key==="t"||e.key==="T"){ e.preventDefault(); tqOpen(); }
   else if(e.key==="Escape"&&document.body.classList.contains("focoview")) focoView(false);
 });
 
@@ -1912,6 +1913,17 @@ function renderBgPick(){ const id0=S.settings.bg||BG_DEF, id=BGS.some(b=>b.id===
   $("#bgPick").innerHTML=BGS.map(b=>`<button type="button" class="bgopt" data-bg="${b.id}" aria-pressed="${b.id===id}" title="${esc(b.name)}"><img src="${b.src}" alt=""><span>${esc(b.name)}</span></button>`).join(""); }
 $("#bgPick").addEventListener("click",e=>{ const b=e.target.closest("[data-bg]"); if(!b) return; S.settings.bg=b.dataset.bg; renderBgPick(); commit(); });
 
+// ---------- key T: quick task dialog, from any view; in Vista Foco the task also goes into Foco ----------
+function tqFocoHint(){ const n=focoIds().length; $("#tqFocoH").textContent=$("#tqFoco").checked?(n<3?"como "+FOCO_LB[n]:"(Foco lleno: elegirás cuál reemplazar)"):""; }
+function tqOpen(){ const d=$("#tqDlg"); if(d.open){ $("#tqTitle").focus(); return; } document.querySelectorAll("dialog[open]").forEach(x=>x.close());
+  const fv=document.body.classList.contains("focoview"), f=focoIds(), ft=f[0]&&taskById(f[0]);
+  $("#tqTitle").value=""; $("#tqTag").value=tagF||(fv&&ft&&ft.tag)||""; $("#tqStar").checked=filter==="star"; $("#tqFoco").checked=fv&&f.length<3; tqFocoHint();
+  d.showModal(); $("#tqTitle").focus(); }
+$("#tqFoco").addEventListener("change",tqFocoHint);
+$("#tqForm").addEventListener("submit",e=>{ e.preventDefault(); const title=$("#tqTitle").value.trim(); if(!title){ $("#tqTitle").focus(); return; }
+  const now=Date.now(), t={id:uid(),title,tag:$("#tqTag").value.trim(),status:"todo",crit:"media",due:null,...($("#tqStar").checked?{star:true}:{}),est:1,pomos:0,spent:0,completed:false,createdAt:now,order:now};
+  S.tasks.push(t); if(!S.activeTaskId) S.activeTaskId=t.id; if(filter==="done") filter="open"; $("#tqDlg").close(); commit();
+  if($("#tqFoco").checked) focoAdd(t.id); else toast("Tarea agregada"); });
 // ---------- Foco: up to 3 tasks in order. Ahora is the one on the clock, Siguiente and Después come next ----------
 var FOCO_LB=["Ahora","Siguiente","Después"];
 function focoIds(){ const f=(S.focus||[]).filter((id,i,a)=>a.indexOf(id)===i&&taskById(id)&&!taskById(id).completed).slice(0,3); S.focus=f; return f; }
