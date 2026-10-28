@@ -1872,7 +1872,7 @@ else {
   $("#radAddBtn").addEventListener("click",()=>radAddShow(true));
   $("#radAddCancel").addEventListener("click",()=>radAddShow(false));
   $("#radAdd").addEventListener("keydown",e=>{ if(e.key==="Escape"){ e.preventDefault(); radAddShow(false); } });
-  $("#radAddUrl").addEventListener("change",()=>{ const u=normUrl($("#radAddUrl").value); if(u&&!$("#radAddName").value.trim()){ const m=u.match(/emisoras\.cl\/([^/?#]+)/i); if(m) $("#radAddName").value=decodeURIComponent(m[1]).replace(/[-_]+/g," ").replace(/\b\w/g,c=>c.toUpperCase()); } });
+  $("#radAddUrl").addEventListener("change",()=>{ const u=normUrl($("#radAddUrl").value); if(u&&!$("#radAddName").value.trim()){ const m=u.match(/emisoras?\.cl\/(?:radio\/|emisora\/)?([^/?#]+)/i); if(m) $("#radAddName").value=decodeURIComponent(m[1]).replace(/[-_]+/g," ").replace(/\b\w/g,c=>c.toUpperCase()); } });
   $("#radAdd").addEventListener("submit",e=>{ e.preventDefault(); const u=normUrl($("#radAddUrl").value); if(!u){ toast("Ese link no es válido. Copia la dirección completa."); $("#radAddUrl").focus(); return; }
     const name=$("#radAddName").value.trim()||linkName(u); S.settings.radMine=[...radMine(),{id:"m-"+uid(),name,url:u,mine:true}]; radAddShow(false); commit(); radRender(); toast(`${name} agregada a Mis radios`); });
   $("#radList").addEventListener("click",e=>{ const li=e.target.closest("[data-rad]"); if(!li) return; const id=li.dataset.rad, st=RAD.list.find(x=>x.id===id)||radFavs().find(x=>x.id===id)||radMine().find(x=>x.id===id); if(!st) return;
