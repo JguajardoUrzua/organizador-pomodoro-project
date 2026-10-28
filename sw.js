@@ -1,6 +1,6 @@
 // Service worker: keeps the app working without internet.
 // When you publish a new version, change VERSION so browsers pick up the new files.
-const VERSION = "v18-foco";
+const VERSION = "v19-foco";
 const CACHE = "tareas-" + VERSION;
 const FILES = [
   "./",
