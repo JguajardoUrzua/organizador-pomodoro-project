@@ -193,6 +193,9 @@ input[type=date]{background:var(--surface);border:1px solid var(--line);border-r
 .sortsel{font-size:.8rem;padding:3px 8px}
 .tsel{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
 #tagSel{max-width:220px}
+.qaask{border:1px solid color-mix(in srgb,var(--focus) 45%,var(--line));background:color-mix(in srgb,var(--focus) 10%,var(--surface));border-radius:10px;padding:10px 12px;font-size:.9rem}
+.qaask p{margin:0 0 8px}
+.qaask .r3{display:flex;gap:8px;flex-wrap:wrap}
 #tagSel.on{border-color:var(--ink);font-weight:600}
 .st{display:inline-flex;align-items:center;gap:4px;border-radius:99px;padding:1px 4px 1px 6px;background:color-mix(in srgb,var(--stc) 14%,transparent);color:var(--stc);font-weight:600;font-size:.74rem}
 .st svg{width:13px;height:13px;flex:none}

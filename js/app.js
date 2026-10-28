@@ -365,19 +365,47 @@ function showTaskForm(on){ if(on) showQuick(false); $("#addTask").hidden=!on; $(
   if(on){ starSet("#tStar",filter==="star"); $("#tTitle").focus(); } else { $("#tTitle").value=""; $("#tTag").value=""; $("#tDue").value=""; $("#tRec").value=""; $("#tCrit").value="media"; $("#tStatus").value="todo"; } }
 $("#newTaskBtn").addEventListener("click",()=>showTaskForm(true));
 // Quick capture: one box, several tasks split on commas or line breaks, all created as "Sin asignar".
-const qaParse=v=>v.split(/[,\n]/).map(x=>x.trim()).filter(Boolean);
-function qaCount(){ const n=qaParse($("#qaText").value).length; $("#qaCount").textContent=n?`Se ${n===1?"creará 1 tarea":`crearán ${n} tareas`}`:""; $("#qaSubmit").disabled=!n; }
+// [Proyecto] sends the tasks after it to that project: found ignoring case and accents, a near match asks first, otherwise it is new.
+const qaKey=x=>fold(x).replace(/\s+/g," ").trim();
+function qaParse(v){ const out=[]; let tag="";
+  String(v).split(/(\[[^\]\n]*\])/).forEach(p=>{ const m=p.match(/^\[([^\]\n]*)\]$/); if(m){ tag=m[1].replace(/\s+/g," ").trim(); return; }
+    p.split(/[,\n]/).map(x=>x.trim().replace(/\.$/,"").trim()).filter(Boolean).forEach(title=>out.push({title,tag})); });
+  return out; }
+function qaProjects(){ const m=new Map(); S.tasks.forEach(t=>{ const g=(t.tag||"").trim(); if(g&&!m.has(qaKey(g))) m.set(qaKey(g),g); }); return m; }
+function lev(a,b){ let r=Array.from({length:b.length+1},(_,j)=>j);
+  for(let i=1;i<=a.length;i++){ let d=r[0]; r[0]=i; for(let j=1;j<=b.length;j++){ const t=r[j]; r[j]=Math.min(r[j]+1,r[j-1]+1,d+(a[i-1]===b[j-1]?0:1)); d=t; } } return r[b.length]; }
+function qaNear(raw,P){ const k=qaKey(raw); let best=null,bd=1e9;
+  P.forEach((name,pk)=>{ let d=lev(k,pk); if(k.length>=4&&pk.length>=4&&(pk.includes(k)||k.includes(pk))) d=Math.min(d,1); if(d<bd){ bd=d; best=name; } });
+  return best&&bd<=Math.max(2,Math.round(k.length*.2))?best:null; }
+let qaDec={}; // answers to "is it this project?", by typed name, until the box closes
+// fills x.proj / x.isNew on each item, or returns the first name that needs asking
+function qaPlan(L){ const orig=qaProjects(), P=new Map(orig);
+  for(const x of L){ x.proj=""; x.isNew=false; if(!x.tag) continue; const k=qaKey(x.tag);
+    if(P.has(k)) x.proj=P.get(k); else if(k in qaDec) x.proj=qaDec[k]; else { const n=qaNear(x.tag,P); if(n) return {ask:{raw:x.tag,near:n}}; x.proj=x.tag; }
+    x.isNew=!orig.has(qaKey(x.proj)); P.set(qaKey(x.proj),x.proj); }
+  return {L}; }
+function qaCount(){ const L=qaParse($("#qaText").value), n=L.length; let s=n?`Se ${n===1?"creará 1 tarea":`crearán ${n} tareas`}`:"";
+  if(n){ const pl=qaPlan(L); if(pl.L){ const ps=[...new Set(L.filter(x=>x.proj).map(x=>x.proj+(x.isNew?" (proyecto nuevo)":"")))]; if(ps.length===1) s+=" en "+ps[0]; else if(ps.length>1) s+=` en ${ps.length} proyectos`; } }
+  $("#qaCount").textContent=s; $("#qaSubmit").disabled=!n||!$("#qaAsk").hidden; }
+function qaAskShow(a){ const el=$("#qaAsk"); el._a=a; el.hidden=false; $("#qaSubmit").disabled=true;
+  el.innerHTML=`<p>No encontré el proyecto <b>${esc(a.raw)}</b>, pero se parece a <b>${esc(a.near)}</b>. ¿Dónde agrego las tareas?</p><div class="r3"><button class="btn sm primary" type="button" data-qa="old">Agregar a ${esc(a.near)}</button><button class="btn sm" type="button" data-qa="new">Crear proyecto ${esc(a.raw)}</button></div>`;
+  el.querySelector("button").focus(); }
+function qaAskHide(){ $("#qaAsk").hidden=true; $("#qaAsk").innerHTML=""; }
+$("#qaAsk").addEventListener("click",e=>{ const b=e.target.closest("[data-qa]"); if(!b) return; const a=$("#qaAsk")._a;
+  qaDec[qaKey(a.raw)]=b.dataset.qa==="old"?a.near:a.raw.replace(/\s+/g," ").trim(); qaAskHide(); qaCount(); $("#quickAdd").requestSubmit(); });
 function showQuick(on){ if(on&&!$("#addTask").hidden) showTaskForm(false); $("#quickAdd").hidden=!on; $("#quickBtn").hidden=on; $("#newTaskBtn").hidden=on;
-  if(on){ starSet("#qaStar",filter==="star"); qaCount(); $("#qaText").focus(); } else $("#qaText").value=""; }
+  qaAskHide(); qaDec={}; if(on){ starSet("#qaStar",filter==="star"); qaCount(); $("#qaText").focus(); } else $("#qaText").value=""; }
 $("#quickBtn").addEventListener("click",()=>showQuick(true));
 $("#qaCancel").addEventListener("click",()=>showQuick(false));
-$("#qaText").addEventListener("input",qaCount);
+$("#qaText").addEventListener("input",()=>{ qaAskHide(); qaCount(); });
 $("#quickAdd").addEventListener("keydown",e=>{ if(e.key==="Escape"){ e.preventDefault(); showQuick(false); }
-  else if(e.key==="Enter"&&!e.shiftKey){ e.preventDefault(); $("#quickAdd").requestSubmit(); } });
-$("#quickAdd").addEventListener("submit",e=>{ e.preventDefault(); const L=qaParse($("#qaText").value); if(!L.length) return;
-  const now=Date.now(), st=starOn("#qaStar"); L.forEach((title,i)=>S.tasks.push({id:uid(),title,tag:"",status:"inbox",crit:"media",due:null,...(st?{star:true}:{}),est:1,pomos:0,spent:0,completed:false,createdAt:now+i,order:now+i}));
+  else if(e.key==="Enter"&&!e.shiftKey&&!e.target.closest("button")){ e.preventDefault(); $("#quickAdd").requestSubmit(); } });
+$("#quickAdd").addEventListener("submit",e=>{ e.preventDefault(); if(!$("#qaAsk").hidden) return; const L=qaParse($("#qaText").value); if(!L.length) return;
+  const pl=qaPlan(L); if(pl.ask){ qaAskShow(pl.ask); return; }
+  const np=[...new Set(L.filter(x=>x.isNew).map(x=>x.proj))];
+  const now=Date.now(), st=starOn("#qaStar"); L.forEach(({title,proj},i)=>S.tasks.push({id:uid(),title,tag:proj,status:"inbox",crit:"media",due:null,...(st?{star:true}:{}),est:1,pomos:0,spent:0,completed:false,createdAt:now+i,order:now+i}));
   if(!S.activeTaskId) S.activeTaskId=S.tasks[S.tasks.length-L.length].id;
-  if(filter!=="all"&&!(st&&filter==="star")) filter="inbox"; lsSet("pp-filter",filter); showQuick(false); commit(); toast(L.length===1?"1 tarea agregada":`${L.length} tareas agregadas`); });
+  if(filter!=="all"&&!(st&&filter==="star")) filter="inbox"; lsSet("pp-filter",filter); showQuick(false); commit(); toast((L.length===1?"1 tarea agregada":`${L.length} tareas agregadas`)+(np.length?` · proyecto nuevo: ${np.join(", ")}`:"")); });
 $("#cancelTask").addEventListener("click",()=>showTaskForm(false));
 $("#addTask").addEventListener("keydown",e=>{ if(e.key==="Escape"){ e.preventDefault(); showTaskForm(false); } });
 function linkSave(t){ const url=normUrl($("#tl-url").value); if(!url){ toast("Ese link no es válido. Copia la dirección completa."); $("#tl-url").focus(); return; }
