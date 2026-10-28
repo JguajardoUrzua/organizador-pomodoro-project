@@ -1795,7 +1795,7 @@ function toast(m){ const el=$("#toast"); el.textContent=m; el.hidden=false; clea
 const RAD_ON=EMBED; var radNowName=""; // shown in the Música header
 const RAD_C=[["CL","Chile"],["AR","Argentina"],["PE","Perú"],["MX","México"],["CO","Colombia"],["UY","Uruguay"],["BO","Bolivia"],["EC","Ecuador"],["PY","Paraguay"],["VE","Venezuela"],["ES","España"],["US","Estados Unidos"]];
 const RAD_SRV=["de1","nl1","at1","de2","fi1"].map(x=>`https://${x}.api.radio-browser.info`);
-const RAD={audio:null,cur:null,list:[],shown:30,state:"",q:"",seq:0,cache:{}};
+const RAD={audio:null,cur:null,list:[],shown:30,state:"",q:"",seq:0,cache:{},src:lsGet("pp-radsrc")==="ti"?"ti":"rb"};
 const radCanHls=!!document.createElement("audio").canPlayType("application/vnd.apple.mpegurl");
 const radSecure=location.protocol==="https:";
 async function radApi(path){ let last; for(const base of RAD_SRV){ try{ const r=await fetch(base+path,{headers:{Accept:"application/json"}}); if(r.ok) return await r.json(); last=new Error(r.status); }catch(e){ last=e; } } throw last||new Error("sin servidor"); }
@@ -1806,15 +1806,50 @@ async function radLoad(){
   const cc=S.settings.radCountry||radDefCountry(), q=RAD.q.trim(), key=cc+"|"+fold(q), my=++RAD.seq;
   if(RAD.cache[key]){ RAD.list=RAD.cache[key]; RAD.state=""; radRender(); return; }
   RAD.state="loading"; radRender();
-  try{
-    const qs=new URLSearchParams({countrycode:cc,hidebroken:"true",order:"clickcount",reverse:"true",limit:q?"120":"200"}); if(q) qs.set("name",q);
-    const raw=await radApi("/json/stations/search?"+qs); if(my!==RAD.seq) return;
-    const seen=new Set(), list=[];
-    raw.filter(radUsable).forEach(x=>{ const st=radStation(x), k=fold(st.name).replace(/\s+/g," "); if(seen.has(k)) return; seen.add(k); list.push(st); });
-    RAD.cache[key]=list; RAD.list=list; RAD.state="";
-  }catch(e){ if(my!==RAD.seq) return; RAD.list=[]; RAD.state="error"; }
-  RAD.shown=30; radRender();
+  const order=RAD.src==="ti"?["ti","rb"]:["rb","ti"];
+  for(const src of order){
+    try{
+      const list=src==="rb"?await rbList(cc,q):await tiList(cc,q); if(my!==RAD.seq) return;
+      if(!list.length&&src!==order[order.length-1]) continue;
+      if(RAD.src!==src){ RAD.src=src; lsSet("pp-radsrc",src); }
+      RAD.cache[key]=list; RAD.list=list; RAD.state=""; RAD.shown=30; radRender(); return;
+    }catch(e){ if(my!==RAD.seq) return; }
+  }
+  RAD.list=[]; RAD.state="error"; RAD.shown=30; radRender();
 }
+async function rbList(cc,q){
+  const qs=new URLSearchParams({countrycode:cc,hidebroken:"true",order:"clickcount",reverse:"true",limit:q?"120":"200"}); if(q) qs.set("name",q);
+  const raw=await radApi("/json/stations/search?"+qs), seen=new Set(), list=[];
+  raw.filter(radUsable).forEach(x=>{ const st=radStation(x), k=fold(st.name).replace(/\s+/g," "); if(seen.has(k)) return; seen.add(k); list.push(st); });
+  return list; }
+// ---- TuneIn (opml.radiotime.com): used when radio-browser.info cannot be reached ----
+const TI="https://opml.radiotime.com", tiHttps=u=>String(u||"").replace(/^http:\/\//i,"https://");
+const TI_CONT={CL:"r101219",AR:"r101219",PE:"r101219",CO:"r101219",UY:"r101219",BO:"r101219",EC:"r101219",PY:"r101219",VE:"r101219",MX:"r101218",US:"r101218",ES:"r101217"};
+const TI_NAMES={CL:["chile"],AR:["argentina"],PE:["peru"],CO:["colombia"],UY:["uruguay"],BO:["bolivia"],EC:["ecuador"],PY:["paraguay"],VE:["venezuela"],MX:["mexico"],US:["united states","estados unidos","usa"],ES:["spain","espana"]};
+async function tiGet(path){ const r=await fetch(TI+path+(path.includes("?")?"&":"?")+"render=json"); if(!r.ok) throw new Error(r.status); const j=await r.json(); if(!j||!Array.isArray(j.body)) throw new Error("tunein"); return j.body; }
+function tiFlat(body){ const out=[]; (function w(a){ (a||[]).forEach(o=>{ if(o.type==="audio"&&(o.item==="station"||!o.item)&&o.guide_id) out.push(o); if(Array.isArray(o.children)) w(o.children); }); })(body); return out; }
+function tiLinks(body){ const out=[]; (function w(a){ (a||[]).forEach(o=>{ if(o.type==="link"&&o.URL) out.push(o); if(Array.isArray(o.children)) w(o.children); }); })(body); return out; }
+const tiStation=o=>({id:"ti-"+o.guide_id,name:String(o.text||"").trim()||"Sin nombre",url:tiHttps(o.URL||(TI+"/Tune.ashx?id="+o.guide_id)),tune:true,logo:o.image?tiHttps(o.image):"",tags:String(o.subtext||"").trim().slice(0,60),city:""});
+async function tiCountry(cc){ const k="pp-ti-"+cc, c=lsGet(k); if(c) return c;
+  const cont=await tiGet("/Browse.ashx?id="+(TI_CONT[cc]||"r0")), names=TI_NAMES[cc]||[];
+  const hit=tiLinks(cont).find(o=>names.includes(fold(o.text||"").trim()));
+  const id=hit&&(hit.guide_id||(String(hit.URL).match(/id=(r\d+)/)||[])[1]); if(!id) throw new Error("país"); lsSet(k,id); return id; }
+async function tiList(cc,q){
+  let found=[];
+  if(q) found=tiFlat(await tiGet("/Search.ashx?types=station&query="+encodeURIComponent(q)));
+  else { let body=await tiGet("/Browse.ashx?id="+await tiCountry(cc)); found=tiFlat(body);
+    // a country page may only list sections (popular, by city, by genre): open the most useful one
+    for(let d=0;d<2&&found.length<8;d++){ const ls=tiLinks(body); const ln=ls.find(o=>/popul|stations|emisoras|radios|local|todas|all/i.test(o.text||""))||ls[0]; if(!ln) break;
+      body=await tiGet(ln.URL.replace(/^https?:\/\/opml\.radiotime\.com/i,"").replace(/[?&]render=json/i,"")); found=found.concat(tiFlat(body)); } }
+  const seen=new Set(), list=[]; found.forEach(o=>{ const st=tiStation(o), k=fold(st.name).replace(/\s+/g," "); if(seen.has(k)) return; seen.add(k); list.push(st); });
+  return list; }
+// TuneIn gives a "tune" link; ask it for the real stream address
+async function tiStream(st){
+  const r=await fetch(tiHttps(st.url)+(st.url.includes("?")?"&":"?")+"render=json"); const t=await r.text(); let urls=[];
+  try{ const j=JSON.parse(t); urls=(j.body||[]).filter(x=>x.url).sort((a,b)=>(a.is_hls_advanced==="true")-(b.is_hls_advanced==="true")).map(x=>x.url); }
+  catch{ urls=t.split(/\r?\n/).map(x=>x.trim()).filter(x=>/^https?:\/\//i.test(x)); }
+  if(radSecure) urls=urls.map(tiHttps);
+  if(!urls.length) throw new Error("sin señal"); return urls[0]; }
 function radDefCountry(){ const l=navigator.language||"", m=l.match(/^es-([A-Z]{2})$/i), c=m&&m[1].toUpperCase(); return RAD_C.some(x=>x[0]===c)?c:"CL"; }
 const radFavs=()=>Array.isArray(S.settings.radFav)?S.settings.radFav:[];
 const radIsFav=id=>radFavs().some(f=>f.id===id);
@@ -1833,10 +1868,11 @@ function radRender(){
   if(favShow.length) h+=`<li class="sub">Favoritas</li>`+favShow.map(radRow).join("");
   const rest=RAD.list.filter(x=>!favIds.has(x.id));
   if(RAD.state==="loading") h+=`<li class="msg">Buscando emisoras…</li>`;
-  else if(RAD.state==="error") h+=`<li class="msg">No se pudo cargar la lista de radios. Revisa tu conexión e inténtalo de nuevo.</li>`;
+  else if(RAD.state==="error") h+=`<li class="msg">No se pudo cargar la lista de radios (ni radio-browser.info ni TuneIn respondieron). Revisa tu conexión e inténtalo de nuevo.</li>`;
   else if(!rest.length) h+=`<li class="msg">${q?`Ninguna emisora coincide con «${esc(RAD.q.trim())}».`:"No hay emisoras disponibles para este país."}</li>`;
   else h+=(favShow.length?`<li class="sub">${q?"Resultados":"Más escuchadas"}</li>`:"")+rest.slice(0,RAD.shown).map(radRow).join("");
   $("#radList").innerHTML=h;
+  $("#radSrc").innerHTML=RAD.src==="ti"?'Emisoras de <a href="https://tunein.com" target="_blank" rel="noopener noreferrer">TuneIn</a>.':'Emisoras de <a href="https://www.radio-browser.info" target="_blank" rel="noopener noreferrer">radio-browser.info</a>, un directorio abierto.';
   $("#radMore").hidden=RAD.state!==""||rest.length<=RAD.shown;
   const n=$("#radNow"), c=RAD.cur;
   n.hidden=!c;
@@ -1854,10 +1890,12 @@ function radPlay(st){
     a.addEventListener("pause",radRender);
     a.addEventListener("error",()=>{ if(!RAD.cur) return; toast(`No se pudo reproducir ${RAD.cur.name}. Prueba otra emisora.`); radStop(); });
     RAD.audio=a; }
-  const a=RAD.audio; RAD.cur=st; a.dataset.st="wait"; a.src=st.url; a.volume=S.settings.radVol??.8;
-  a.play().catch(e=>{ if(e&&e.name==="AbortError") return; toast(`No se pudo reproducir ${st.name}.`); radStop(); });
+  const a=RAD.audio; RAD.cur=st; a.dataset.st="wait"; a.volume=S.settings.radVol??.8;
+  const go=u=>{ if(RAD.cur!==st) return; a.src=u; a.play().catch(e=>{ if(e&&e.name==="AbortError") return; toast(`No se pudo reproducir ${st.name}.`); radStop(); }); };
+  if(st.tune) tiStream(st).then(go).catch(()=>{ if(RAD.cur!==st) return; toast(`No se pudo conectar con ${st.name}. Prueba otra emisora.`); radStop(); });
+  else go(st.url);
   if("mediaSession" in navigator) try{ navigator.mediaSession.metadata=new MediaMetadata({title:st.name,artist:"Radio en vivo",artwork:st.logo?[{src:st.logo}]:[]}); }catch{}
-  radApi("/json/url/"+encodeURIComponent(st.id)).catch(()=>{}); // counts the listen in the directory
+  if(!st.tune) radApi("/json/url/"+encodeURIComponent(st.id)).catch(()=>{}); // counts the listen in the directory
   radNowName=st.name; ambUI(); radRender();
 }
 function radStop(){ if(RAD.audio){ RAD.audio.pause(); RAD.audio.removeAttribute("src"); RAD.audio.load(); } RAD.cur=null; radNowName=""; ambUI(); radRender(); }
@@ -1867,7 +1905,7 @@ else {
   let radT=null; $("#radQ").addEventListener("input",e=>{ RAD.q=e.target.value; clearTimeout(radT); radRender(); radT=setTimeout(radLoad,450); });
   $("#radMore").addEventListener("click",()=>{ RAD.shown+=30; radRender(); });
   $("#radList").addEventListener("click",e=>{ const li=e.target.closest("[data-rad]"); if(!li) return; const id=li.dataset.rad, st=RAD.list.find(x=>x.id===id)||radFavs().find(x=>x.id===id); if(!st) return;
-    if(e.target.closest("[data-radfav]")){ const f=radFavs(); S.settings.radFav=radIsFav(id)?f.filter(x=>x.id!==id):[...f,{id:st.id,name:st.name,url:st.url,logo:st.logo,tags:st.tags,city:st.city}]; commit(); radRender(); toast(radIsFav(id)?`${st.name} en favoritas`:`${st.name} quitada de favoritas`); return; }
+    if(e.target.closest("[data-radfav]")){ const f=radFavs(); S.settings.radFav=radIsFav(id)?f.filter(x=>x.id!==id):[...f,{id:st.id,name:st.name,url:st.url,logo:st.logo,tags:st.tags,city:st.city,...(st.tune?{tune:true}:{})}]; commit(); radRender(); toast(radIsFav(id)?`${st.name} en favoritas`:`${st.name} quitada de favoritas`); return; }
     if(RAD.cur&&RAD.cur.id===id){ RAD.audio.paused?RAD.audio.play().catch(()=>{}):RAD.audio.pause(); return; }
     radPlay(st); });
   $("#radNow").addEventListener("click",e=>{ if(e.target.closest("[data-radstop]")) radStop(); else if(e.target.closest("[data-radtoggle]")&&RAD.audio){ RAD.audio.paused?RAD.audio.play().catch(()=>{}):RAD.audio.pause(); } });
