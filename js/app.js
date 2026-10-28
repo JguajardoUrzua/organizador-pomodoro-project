@@ -1847,7 +1847,7 @@ function radRender(){
   if(favShow.length) h+=`<li class="sub">Favoritas</li>`+favShow.map(radRow).join("");
   const rest=RAD.list.filter(x=>!favIds.has(x.id));
   if(RAD.state==="loading") h+=`<li class="msg">Buscando emisoras…</li>`;
-  else if(RAD.state==="error") h+=`<li class="msg">No se pudo cargar el directorio de radios. Puede que tu red bloquee radio-browser.info. Agrega tus emisoras con «+ Agregar radio», pegando el link de la emisora en emisoras.cl.<br><a class="btn sm" href="https://emisoras.cl" target="_blank" rel="noopener noreferrer">Abrir emisoras.cl</a></li>`;
+  else if(RAD.state==="error") h+=`<li class="msg">No se pudo cargar el directorio de radios. Puede que tu red bloquee radio-browser.info. Agrega tus emisoras con «+ Agregar radio», pegando el link de la emisora en emisoras.cl.</li>`;
   else if(!rest.length) h+=`<li class="msg">${q?`Ninguna emisora coincide con «${esc(RAD.q.trim())}».`:"No hay emisoras disponibles para este país."}</li>`;
   else h+=(favShow.length?`<li class="sub">${q?"Resultados":"Más escuchadas"}</li>`:"")+rest.slice(0,RAD.shown).map(radRow).join("");
   $("#radList").innerHTML=h;
