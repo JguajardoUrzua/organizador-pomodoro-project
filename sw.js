@@ -1,6 +1,6 @@
 // Service worker: keeps the app working without internet.
 // When you publish a new version, change VERSION so browsers pick up the new files.
-const VERSION = "v23";
+const VERSION = "v24";
 const CACHE = "tareas-" + VERSION;
 const FILES = [
   "./",
@@ -11,6 +11,8 @@ const FILES = [
   "icons/favicon.svg",
   "icons/icon-192.png",
   "icons/icon-512.png",
+  "img/fondos/agujero-negro.jpg",
+  "img/fondos/astronauta-mar.jpg",
   "img/fondos/bosque-rio.jpg",
   "img/fondos/ciudad-pixel.jpg",
   "img/fondos/lago-bosque.jpg",
