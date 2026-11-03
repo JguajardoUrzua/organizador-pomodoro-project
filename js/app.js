@@ -1915,6 +1915,8 @@ const BGS=[
   {id:"lago-nevado",name:"Lago nevado",src:"img/fondos/lago-nevado.jpg"},
   {id:"lago-bosque",name:"Lago y bosque",src:"img/fondos/lago-bosque.jpg"},
   {id:"playa-aerea",name:"Playa aérea",src:"img/fondos/playa-aerea.jpg"},
+{id:"agujero-negro",name:"Agujero negro",src:"img/fondos/agujero-negro.jpg"},
+{id:"astronauta-mar",name:"Astronauta en el mar",src:"img/fondos/astronauta-mar.jpg"},
 ];
 const BG_DEF="montana-retro";
 (()=>{
