@@ -1,6 +1,6 @@
 (() => {
 const LS = "pomodoro-panel-v1", LT = "pomodoro-timer-v1";
-const DEF = {settings:{focus:25,short:5,long:15,longEvery:4,goal:8,autoBreaks:false,autoFocus:false,sound:true,ambKind:"rain",ambVol:.5,ambSync:false,jtags:[]},
+const DEF = {settings:{focus:25,short:5,long:15,longEvery:4,goal:8,autoBreaks:false,autoFocus:false,sound:true,ambKind:"rain",ambVol:.5,ambSync:false,jtags:[],prodTags:[]},
   tasks:[],notes:[],log:[],tlog:{},activeTaskId:null,updatedAt:0};
 const $ = s => document.querySelector(s);
 const uid = () => Math.random().toString(36).slice(2,10)+Date.now().toString(36).slice(-4);
@@ -14,7 +14,7 @@ let S = normalize(lsGet(LS));
 function normalize(x){
   x = x && typeof x==="object" ? x : {};
   return {settings:{...DEF.settings,...(x.settings||{})},tasks:Array.isArray(x.tasks)?x.tasks.map(t=>t.status?t:{...t,status:t.completed?"done":"todo"}):[],notes:Array.isArray(x.notes)?x.notes:[],
-    log:Array.isArray(x.log)?x.log:[],tlog:x.tlog&&typeof x.tlog==="object"&&!Array.isArray(x.tlog)?x.tlog:{},music:Array.isArray(x.music)?x.music:[],activeTaskId:x.activeTaskId??null,updatedAt:x.updatedAt||0};
+    log:Array.isArray(x.log)?x.log:[],tlog:x.tlog&&typeof x.tlog==="object"&&!Array.isArray(x.tlog)?x.tlog:{},music:Array.isArray(x.music)?x.music:[],incident:x.incident&&typeof x.incident==="object"&&x.incident.id?x.incident:null,activeTaskId:x.activeTaskId??null,updatedAt:x.updatedAt||0};
 }
 
 // ---------- persistence (browser + private db doc) ----------
@@ -218,9 +218,75 @@ function dueInfo(d){
   if(diff<0) return {cls:"over",txt:`Vencida ${f}`}; if(diff===0) return {cls:"soon",txt:"Vence hoy"}; if(diff===1) return {cls:"soon",txt:"Vence mañana"};
   return {cls:"",txt:`Vence ${f}`};
 }
+// ---------- Soporte / Producción: projects marked in Ajustes > Proyectos get a strip above the tasks, priority, origin, ticket and incident mode ----------
+var PRIO=["P1","P2","P3","P4"], SRC={ticket:"Ticket",teams:"Teams",correo:"Correo"}, PSLA={P1:2*36e5,P2:8*36e5,P3:3*864e5,P4:7*864e5}, prodAll=false, prodAdd=false;
+function pkey(x){ return String(x||"").normalize("NFD").replace(/[̀-ͯ]/g,"").toLowerCase().replace(/\s+/g," ").trim(); }
+function isProdTag(tag){ return !!tag&&(S.settings.prodTags||[]).includes(pkey(tag)); }
+function isProd(t){ return !!t&&isProdTag(t.tag); }
+function prodNames(){ const m=new Map(); S.tasks.forEach(t=>{ if(isProdTag(t.tag)&&!m.has(pkey(t.tag))) m.set(pkey(t.tag),t.tag); }); return [...m.values()]; }
+function pAge(ms){ const m=Math.max(0,Math.floor(ms/6e4)); if(m<60) return m+" min"; const h=Math.floor(m/60); if(h<24) return h+" h"+(h<5&&m%60?" "+(m%60)+" min":""); return Math.floor(h/24)+" d"; }
+function pLate(t){ return Date.now()-(t.createdAt||Date.now())>PSLA[t.prio||"P3"]; }
+function prodOpen(){ const PO={P1:0,P2:1,P3:2,P4:3}; return S.tasks.filter(t=>!t.completed&&isProd(t)).sort((a,b)=>(PO[a.prio||"P3"]-PO[b.prio||"P3"])||((a.createdAt||0)-(b.createdAt||0))); }
+function prodMeta(t){ if(!isProd(t)) return "";
+  const tk=t.ticket||(t.ticketUrl?"ticket":"");
+  return (t.prio?`<span class="pchip ${t.prio}" title="Prioridad ${t.prio}">${t.prio}</span>`:"")
+    +(tk?(t.ticketUrl?`<a class="tick" href="${esc(t.ticketUrl)}" target="_blank" rel="noopener noreferrer" title="Abrir el ticket">${esc(tk)}</a>`:`<span class="tick">${esc(tk)}</span>`):"")
+    +(t.src&&SRC[t.src]?`<span class="tsrc">vía ${SRC[t.src]}</span>`:""); }
+function prodEditHtml(t){ return `<div class="prodf" ${isProd(t)?"":"hidden"}><label class="fld"><span>Prioridad</span><select id="e-prio"><option value="">Sin prioridad</option>${PRIO.map(p=>`<option ${p===t.prio?"selected":""}>${p}</option>`).join("")}</select></label><label class="fld"><span>Origen</span><select id="e-src"><option value="">Sin origen</option>${Object.entries(SRC).map(([k,v])=>`<option value="${k}" ${k===t.src?"selected":""}>${v}</option>`).join("")}</select></label><label class="fld"><span>N° ticket</span><input type="text" id="e-ticket" value="${esc(t.ticket||"")}" placeholder="Opcional"></label><label class="fld"><span>Link del ticket</span><input type="url" id="e-turl" value="${esc(t.ticketUrl||"")}" placeholder="Opcional"></label></div>`; }
+function prodRender(force){ const el=$("#prodStrip"); if(!el) return; const on=(S.settings.prodTags||[]).length>0; el.hidden=!on; if(!on) return;
+  if(!force&&prodAdd&&el.querySelector(".padd")) return; // keep the new-incident form as typed
+  const L=prodOpen(), p1=L.filter(t=>t.prio==="P1").length, late=L.filter(pLate).length, inc=S.incident&&S.incident.id, now=Date.now();
+  const old=L.length?Math.min(...L.map(t=>t.createdAt||now)):0, shown=prodAll?L:L.slice(0,3);
+  let h=`<div class="hd"><span class="ttl"><span class="pdot ${inc?"live":""}"></span>Producción</span><span class="pkpi"><span>${L.length?L.length+" abierto"+(L.length>1?"s":""):"Sin casos abiertos"}</span>${p1?`<span class="warn">${p1} P1</span>`:""}${late?`<span class="warn" title="Abiertos hace más tiempo del esperado para su prioridad (P1 2 h, P2 8 h, P3 3 días, P4 7 días)">${late} atrasado${late>1?"s":""}</span>`:""}${L.length?`<span>más antiguo: ${pAge(now-old)}</span>`:""}</span><span style="flex:1"></span>${prodAdd?"":`<button class="btn sm prodb" type="button" data-pr="add" title="Registrar un caso nuevo de soporte">${ic("plus")}Incidente</button>`}</div>`;
+  if(shown.length) h+=`<div class="ptks">`+shown.map(t=>`<div class="ptk" data-id="${t.id}">${t.prio?`<span class="pchip ${t.prio}">${t.prio}</span>`:""}${t.ticket?`<span class="tid">${esc(t.ticket)}</span>`:""}<button class="t" type="button" data-pr="go" title="Abrir la tarea">${esc(t.title)}</button><span class="page ${pLate(t)?"late":""}" title="Abierto el ${new Date(t.createdAt||now).toLocaleString("es",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"})}">${pAge(now-(t.createdAt||now))}</span>${inc===t.id?`<span class="pnow">En curso</span>`:`<button class="pgo" type="button" data-pr="inc" title="Atender: pausa lo que haces y empieza este caso" aria-label="Atender ${esc(t.title)}">${ICON_PLAY}</button>`}</div>`).join("")+`</div>`;
+  if(L.length>3) h+=`<div class="pmore"><button class="nlink" type="button" data-pr="all">${prodAll?"Ver menos":`y ${L.length-3} más · ver todos`}</button></div>`;
+  if(prodAdd){ const nm=prodNames(); h+=`<div class="padd">
+    <label class="fld wide"><span>Incidente</span><input type="text" id="pa-title" placeholder="¿Qué pasó?" autocomplete="off"></label>
+    <label class="fld"><span>Proyecto</span><input type="text" id="pa-tag" list="prodDl" value="${esc(nm[0]||"")}" placeholder="Soporte" autocomplete="off"><datalist id="prodDl">${nm.map(n=>`<option value="${esc(n)}">`).join("")}</datalist></label>
+    <label class="fld"><span>Prioridad</span><select id="pa-prio">${PRIO.map(x=>`<option ${x==="P2"?"selected":""}>${x}</option>`).join("")}</select></label>
+    <label class="fld"><span>Origen</span><select id="pa-src">${Object.entries(SRC).map(([k,v])=>`<option value="${k}">${v}</option>`).join("")}</select></label>
+    <label class="fld"><span>N° ticket</span><input type="text" id="pa-ticket" placeholder="Opcional" autocomplete="off"></label>
+    <label class="fld"><span>Link</span><input type="url" id="pa-url" placeholder="Opcional" autocomplete="off"></label>
+    <div class="r"><button class="btn sm" type="button" data-pr="cancel">Cancelar</button><button class="btn sm" type="button" data-pr="save">Crear</button><button class="btn sm prodb" type="button" data-pr="save-go" title="Crea el caso y empieza a atenderlo">Crear y atender</button></div></div>`; }
+  if(el.dataset.h!==h){ el.dataset.h=h; el.innerHTML=h; } }
+function prodSave(go){ const title=$("#pa-title").value.trim(); if(!title){ toast("Escribe qué pasó."); $("#pa-title").focus(); return; }
+  const url=$("#pa-url").value.trim(), nu=url?normUrl(url):""; if(url&&!nu){ toast("Ese link no es válido. Copia la dirección completa."); $("#pa-url").focus(); return; }
+  let tag=$("#pa-tag").value.replace(/\s+/g," ").trim()||prodNames()[0]||"Soporte";
+  { const ex=S.tasks.find(t=>t.tag&&pkey(t.tag)===pkey(tag)); if(ex) tag=ex.tag; }
+  if(!isProdTag(tag)) S.settings.prodTags=[...(S.settings.prodTags||[]),pkey(tag)];
+  const pr=$("#pa-prio").value, tk=$("#pa-ticket").value.trim(), now=Date.now();
+  const t={id:uid(),title,tag,status:"todo",crit:pr==="P1"||pr==="P2"?"alta":pr==="P3"?"media":"baja",due:null,prio:pr,src:$("#pa-src").value,...(tk?{ticket:tk}:{}),...(nu?{ticketUrl:nu}:{}),est:1,pomos:0,spent:0,completed:false,createdAt:now,order:now};
+  S.tasks.push(t); prodAdd=false; $("#prodStrip").dataset.h=""; if(document.activeElement) document.activeElement.blur();
+  if(go) incStart(t.id); else { commit(); toast("Caso agregado a Producción"); } }
+// incident mode: what you were doing is paused and remembered; closing the incident takes you back to it
+function incStart(id){ const t=taskById(id); if(!t||t.completed) return;
+  if(S.incident&&S.incident.id===id){ if(!(T.track&&T.track.id===id)) startTrack(id); return; }
+  const cur=(T.track&&T.track.id)||S.activeTaskId, prev=S.incident?S.incident.prev:(cur&&cur!==id?cur:null);
+  S.incident={id,prev,start:Date.now()}; startTrack(id);
+  toast(prev&&taskById(prev)?"Incidente en curso. Lo que hacías quedó en pausa.":"Incidente en curso."); }
+function incEnd(close){ const inc=S.incident; if(!inc) return; S.incident=null; const t=taskById(inc.id), pv=inc.prev&&taskById(inc.prev);
+  if(close&&t&&!t.completed) setStatus(t,"done");
+  if(pv&&!pv.completed){ startTrack(pv.id); toast((close?"Incidente cerrado. ":"")+"Volviste a «"+pv.title+"»"); }
+  else { if(!close&&T.track&&T.track.id===inc.id) stopTrack(); commit(); toast(close?"Incidente cerrado.":"Saliste del modo incidente."); } }
+function incCheck(){ const inc=S.incident; if(!inc) return; const t=taskById(inc.id);
+  if(!t){ S.incident=null; lsSet(LS,S); return; }
+  if(t.completed){ setTimeout(()=>{ if(S.incident&&S.incident.id===inc.id) incEnd(true); },0); return; } // closed from the list: go back too
+  if(T.track&&T.track.id!==inc.id){ S.incident=null; lsSet(LS,S); } } // you moved on to another task by hand
+function incClock(ms){ const s=Math.max(0,Math.floor(ms/1000)), h=Math.floor(s/3600), m=Math.floor(s/60)%60; return (h?h+":":"")+String(m).padStart(2,"0")+":"+String(s%60).padStart(2,"0"); }
+function incRender(){ const el=$("#incBar"); if(!el) return; const inc=S.incident, t=inc&&taskById(inc.id), on=!!(t&&!t.completed);
+  document.body.classList.toggle("incident",on);
+  if(!on){ if(!el.hidden){ el.hidden=true; el.innerHTML=""; el.dataset.h=""; } return; }
+  const pv=inc.prev&&taskById(inc.prev), back=!!(pv&&!pv.completed);
+  const h=`<div class="l1"><span aria-hidden="true">🚨</span> Incidente ${t.prio?`<span class="pchip ${t.prio}">${t.prio}</span>`:""}${t.ticket?`<span>${esc(t.ticket)}</span>`:""}<span class="el" id="incEl" title="Tiempo desde que empezaste a atenderlo"></span></div>
+    <div class="l2"><span class="pv">${back?`En pausa: <b>${esc(pv.title)}</b>`:"Sin tarea en pausa."}</span><button class="btn sm ghost" type="button" data-inc="back" title="${back?"Vuelve a tu tarea y deja el caso abierto":"Sale del modo incidente y deja el caso abierto"}">${back?"Volver sin cerrar":"Salir"}</button><button class="btn sm" type="button" data-inc="close">${back?"Cerrar y volver":"Cerrar incidente"}</button></div>`;
+  el.hidden=false; if(el.dataset.h!==h){ el.dataset.h=h; el.innerHTML=h; } $("#incEl").textContent=incClock(Date.now()-inc.start); }
+function projSetRender(){ const m=new Map(); S.tasks.forEach(t=>{ if(!t.tag) return; const k=pkey(t.tag); if(!m.has(k)) m.set(k,{name:t.tag,n:0}); if(!t.completed) m.get(k).n++; });
+  const L=[...m.entries()].sort((a,b)=>a[1].name.localeCompare(b[1].name,"es"));
+  $("#projList").innerHTML=L.length?L.map(([k,p])=>{ const on=isProdTag(p.name); return `<label class="projrow ${on?"on":""}"><span class="n">${esc(p.name)}</span><span class="meta" style="margin:0">${p.n} abierta${p.n!==1?"s":""}</span><span class="k">${on?"Producción":"Proyecto"}</span><input type="checkbox" data-pk="${esc(k)}" ${on?"checked":""} aria-label="${esc(p.name)} es de Producción"></label>`; }).join("")
+    :`<div class="meta">Aún no tienes proyectos. Asigna un proyecto a tus tareas y aparecerá aquí.</div>`; }
 var applyBg=()=>{}, dragTodo=null;
 var jReady=false; // set once the bitácora code below has run
-function render(){ applyLook();
+function render(){ applyLook(); incCheck(); prodRender(); incRender();
   const st=S.settings;
   renderKanban(); if(jReady){ jClosedRender(); jMarkTasks(); calRender(); }
   // tags
@@ -253,10 +319,10 @@ function render(){ applyLook();
   if(!editingNow&&!dragTodo) $("#tasks").innerHTML=list.length?list.map(t=>{
     const p=t.pomos||0, over=p>t.est, crit=t.crit||"media", trk=T.track&&T.track.id===t.id;
     const nN=S.notes.filter(n=>n.task===t.id&&!n.done).length, du=dueInfo(t.due), todos=t.todos||[], tdDone=todos.filter(x=>x.done).length;
-    return `<li class="task ${t.completed?(t.status==="cancelled"?"cancelled":"done"):""} ${trk?"tracking":""} ${!trk&&t.id===S.activeTaskId?"active":""}" data-id="${t.id}">
+    return `<li class="task ${t.completed?(t.status==="cancelled"?"cancelled":"done"):""} ${isProd(t)?"prod":""} ${trk?"tracking":""} ${!trk&&t.id===S.activeTaskId?"active":""}" data-id="${t.id}">
       ${t.completed?"<span style=\"width:28px\"></span>":`<button class="btn track ${trk?"on":""}" type="button" data-act="track" aria-label="${trk?"Detener":"Iniciar"}" title="${trk?"Detener":"Iniciar"}">${trk?ICON_STOP:ICON_PLAY}</button>`}
       <div style="min-width:0"><div class="trow"><button class="star ${t.star?"on":""}" type="button" data-act="star" aria-pressed="${!!t.star}" aria-label="${t.star?"Quitar de Hoy":"Marcar para hoy"}" title="${t.star?"Quitar de Hoy":"Marcar para hoy"}">${ic("star",t.star?"fill":"")}</button><div class="t" data-act="edit" title="Editar tarea">${hl(t.title)}</div></div>
-        <div class="meta"><label class="st st-${t.status||"todo"}" title="Estado">${ST_ICON[t.status||"todo"]}<select data-status aria-label="Estado">${statusOpts(t.status||"todo")}</select></label>${sig(crit)}${t.tag?`<span class="tag">${esc(t.tag)}</span>`:""}${du&&!t.completed?`<span class="due ${du.cls}">${du.txt}</span>`:""}${t.alert&&!t.completed?alChip(t):""}${t.rec?`<span class="rec" title="Se repite: ${REC[t.rec]}. Al cerrarla se crea la siguiente.">${ic("rep")} ${REC[t.rec]}</span>`:""}${t.jday?`<button class="nlink" type="button" data-act="jday" title="Ver la línea de la bitácora donde nació esta tarea">Bitácora ${esc(jLabel(t.jday))}</button>`:""}${liveSpent(t)>0||trk?`<span class="spent" data-spent="${t.id}" title="Tiempo invertido en la tarea">${clock(liveSpent(t))}</span>`:""}${nN?`<button class="nlink" type="button" data-act="qnote" title="Ver notas de la tarea">${nN} nota${nN>1?"s":""}</button>`:""}${todos.length?(t.completed?`<span class="ico has-todo" title="${todos.length} to-do (${tdDone} hecho${tdDone!==1?"s":""})" aria-label="Tiene to-do">${ICON_LIST}</span>`
+        <div class="meta"><label class="st st-${t.status||"todo"}" title="Estado">${ST_ICON[t.status||"todo"]}<select data-status aria-label="Estado">${statusOpts(t.status||"todo")}</select></label>${sig(crit)}${t.tag?`<span class="tag">${esc(t.tag)}</span>`:""}${prodMeta(t)}${du&&!t.completed?`<span class="due ${du.cls}">${du.txt}</span>`:""}${t.alert&&!t.completed?alChip(t):""}${t.rec?`<span class="rec" title="Se repite: ${REC[t.rec]}. Al cerrarla se crea la siguiente.">${ic("rep")} ${REC[t.rec]}</span>`:""}${t.jday?`<button class="nlink" type="button" data-act="jday" title="Ver la línea de la bitácora donde nació esta tarea">Bitácora ${esc(jLabel(t.jday))}</button>`:""}${liveSpent(t)>0||trk?`<span class="spent" data-spent="${t.id}" title="Tiempo invertido en la tarea">${clock(liveSpent(t))}</span>`:""}${nN?`<button class="nlink" type="button" data-act="qnote" title="Ver notas de la tarea">${nN} nota${nN>1?"s":""}</button>`:""}${todos.length?(t.completed?`<span class="ico has-todo" title="${todos.length} to-do (${tdDone} hecho${tdDone!==1?"s":""})" aria-label="Tiene to-do">${ICON_LIST}</span>`
   :`<button class="ico has-todo tdtog" type="button" data-act="todo-toggle" aria-expanded="${!t.todoMin}" title="${t.todoMin?"Mostrar":"Ocultar"} la lista to-do · ${tdDone} de ${todos.length} hechos">${ICON_LIST} ${tdDone}/${todos.length}<span class="car" aria-hidden="true">${t.todoMin?"▸":"▾"}</span></button>`):""}</div>
       <div class="acts">
         ${t.completed?"":`<button class="icon ico" type="button" data-act="todo" aria-label="Agregar to-do" title="Agregar to-do">${ICON_LIST}</button>
@@ -279,6 +345,7 @@ function render(){ applyLook();
         <label class="fld"><span>Vence</span><input type="date" id="e-due" value="${esc(t.due||"")}"></label>
         <label class="fld"><span>Repetir</span><select id="e-rec">${Object.entries(REC).map(([k,v])=>`<option value="${k}" ${k===(t.rec||"")?"selected":""}>${v}</option>`).join("")}</select></label>
         <label class="fld"><span>Alerta</span><input type="datetime-local" id="e-alert" value="${t.alert?alLocal(t.alert):""}"></label>
+        ${prodEditHtml(t)}
         <div class="wide" style="display:flex;gap:8px;justify-content:flex-end"><button class="btn sm" type="button" data-act="cancel">Cancelar</button><button class="btn sm primary" type="button" data-act="save">Guardar</button></div>
       </div>`:""}
       ${!t.completed&&(todoAdd===t.id||(todos.length&&!t.todoMin))?`<div class="todos">
@@ -400,6 +467,22 @@ $("#quickAdd").addEventListener("submit",e=>{ e.preventDefault(); if(!$("#qaAsk"
   if(!S.activeTaskId) S.activeTaskId=S.tasks[S.tasks.length-L.length].id;
   if(filter!=="all"&&!(st&&filter==="star")) filter="inbox"; lsSet("pp-filter",filter); showQuick(false); commit(); toast((L.length===1?"1 tarea agregada":`${L.length} tareas agregadas`)+(np.length?` · proyecto nuevo: ${np.join(", ")}`:"")); });
 $("#cancelTask").addEventListener("click",()=>showTaskForm(false));
+$("#tasks").addEventListener("input",e=>{ if(e.target.id!=="e-tag") return; const f=$(".edit .prodf"); if(f) f.hidden=!isProdTag(e.target.value); });
+$("#prodStrip").addEventListener("click",e=>{ const b=e.target.closest("[data-pr]"); if(!b) return; const a=b.dataset.pr, row=b.closest("[data-id]"), id=row&&row.dataset.id;
+  if(a==="add"){ prodAdd=true; prodRender(true); $("#pa-title").focus(); }
+  else if(a==="cancel"){ prodAdd=false; prodRender(true); }
+  else if(a==="all"){ prodAll=!prodAll; prodRender(true); }
+  else if(a==="go"&&id) goToTask(id);
+  else if(a==="inc"&&id) incStart(id);
+  else if(a==="save"||a==="save-go") prodSave(a==="save-go"); });
+$("#prodStrip").addEventListener("keydown",e=>{ if(!e.target.closest(".padd")) return;
+  if(e.key==="Escape"){ e.preventDefault(); e.stopPropagation(); prodAdd=false; prodRender(true); }
+  else if(e.key==="Enter"&&e.target.matches("input")){ e.preventDefault(); prodSave(false); } });
+$("#incBar").addEventListener("click",e=>{ const b=e.target.closest("[data-inc]"); if(b) incEnd(b.dataset.inc==="close"); });
+$("#projList").addEventListener("change",e=>{ const k=e.target.dataset.pk; if(k==null) return; const st=new Set(S.settings.prodTags||[]); if(e.target.checked) st.add(k); else st.delete(k); S.settings.prodTags=[...st]; commit(); projSetRender(); });
+setInterval(()=>{ if(S.incident) incRender(); },1000);
+setInterval(()=>prodRender(),60000);
+
 $("#addTask").addEventListener("keydown",e=>{ if(e.key==="Escape"){ e.preventDefault(); showTaskForm(false); } });
 function linkSave(t){ const url=normUrl($("#tl-url").value); if(!url){ toast("Ese link no es válido. Copia la dirección completa."); $("#tl-url").focus(); return; }
   t.links=[...(t.links||[]),{id:uid(),url,name:linkName(url,$("#tl-name").value.trim())}]; linkAdd=null; document.activeElement.blur(); commit(); toast("Link adjuntado"); }
@@ -437,7 +520,8 @@ $("#tasks").addEventListener("click",e=>{
   if(a==="track"){ if(T.track&&T.track.id===id){ stopTrack(); } else { startTrack(id); return; } }
   else if(a==="edit"){ editing=editing===id?null:id; render(); if(editing){ const el=$("#e-title"); el&&el.focus(); } return; }
   else if(a==="cancel"){ editing=null; document.activeElement.blur(); render(); return; }
-  else if(a==="save"){ const ti=$("#e-title").value.trim(); if(ti) t.title=ti; t.tag=$("#e-tag").value.trim(); t.crit=$("#e-crit").value; setStatus(t,$("#e-status").value); t.due=$("#e-due").value||null; t.rec=$("#e-rec").value||null; { const av=$("#e-alert").value, ms=av?new Date(av).getTime():null; if((ms||null)!==(t.alert||null)) alSet(t,ms); } editing=null; document.activeElement.blur(); toast("Tarea actualizada"); }
+  else if(a==="save"){ const ti=$("#e-title").value.trim(); if(ti) t.title=ti; t.tag=$("#e-tag").value.trim(); t.crit=$("#e-crit").value; setStatus(t,$("#e-status").value); t.due=$("#e-due").value||null; t.rec=$("#e-rec").value||null; { const av=$("#e-alert").value, ms=av?new Date(av).getTime():null; if((ms||null)!==(t.alert||null)) alSet(t,ms); } { const pf=$(".edit .prodf"); if(pf&&!pf.hidden){ const u=$("#e-turl").value.trim(), v={prio:$("#e-prio").value,src:$("#e-src").value,ticket:$("#e-ticket").value.trim(),ticketUrl:u?normUrl(u):""}; Object.entries(v).forEach(([k,x])=>{ if(x) t[k]=x; else delete t[k]; }); } }
+    editing=null; document.activeElement.blur(); toast("Tarea actualizada"); }
   else if(a==="done"){ setStatus(t,t.completed?"todo":"done"); }
   else if(a==="jday"){ jGoTask(t); return; }
   else if(a==="star"){ t.star=!t.star; toast(t.star?"Agregada a ★ Hoy":"Quitada de ★ Hoy"); }
@@ -576,7 +660,7 @@ $("#setNav").addEventListener("keydown",e=>{ const k=e.key; if(!["ArrowDown","Ar
 $("#setClose").addEventListener("click",()=>dlg.close("cancel"));
 $("#openSettings").addEventListener("click",()=>{ const s=S.settings;
   $("#cFocus").value=s.focus;$("#cShort").value=s.short;$("#cLong").value=s.long;$("#cEvery").value=s.longEvery;$("#cGoal").value=s.goal;
-  $("#cAutoB").checked=s.autoBreaks;$("#cAutoF").checked=s.autoFocus;$("#cSound").checked=s.sound;$("#cFocusMode").checked=s.focusMode!==false; $("#cAlSound").checked=s.alertSound!==false; alPermUI(); renderBgPick(); setSec(lsGet("pp-setsec")||"timer"); dlg.returnValue=""; dlg.showModal(); });
+  $("#cAutoB").checked=s.autoBreaks;$("#cAutoF").checked=s.autoFocus;$("#cSound").checked=s.sound;$("#cFocusMode").checked=s.focusMode!==false; $("#cAlSound").checked=s.alertSound!==false; alPermUI(); renderBgPick(); projSetRender(); setSec(lsGet("pp-setsec")||"timer"); dlg.returnValue=""; dlg.showModal(); });
 dlg.addEventListener("close",()=>{ if(dlg.returnValue!=="ok") return;
   const n=(id,min,max,d)=>{const v=Math.round(+$(id).value);return v>=min&&v<=max?v:d};
   const s=S.settings, old={...s};
