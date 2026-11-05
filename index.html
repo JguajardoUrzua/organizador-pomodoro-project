@@ -13,7 +13,7 @@
 <meta name="apple-mobile-web-app-title" content="Tareas">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap">
-<link rel="stylesheet" href="css/styles.css?v=v28-foco">
+<link rel="stylesheet" href="css/styles.css?v=v29-foco">
 </head>
 <body>
 <canvas id="scene" aria-hidden="true"></canvas>
@@ -38,6 +38,7 @@
         <button type="button" data-mode="short">Pausa corta</button>
         <button type="button" data-mode="long">Pausa larga</button>
       </div>
+      <div class="incbar" id="incBar" role="status" hidden></div>
       <div class="dial">
         <svg viewBox="0 0 200 200" aria-hidden="true">
           <g class="ticks" id="ticks"></g>
@@ -118,6 +119,7 @@
           <select id="sort" class="sortsel" aria-label="Ordenar por" title="Ordenar por"><option value="manual">Orden: el mío</option><option value="crit">Orden: criticidad</option><option value="due">Orden: vencimiento</option><option value="status">Orden: estado</option></select>
         </div>
       </div>
+      <div class="prodstrip" id="prodStrip" hidden></div>
       <ul class="list" id="tasks"></ul>
       <div class="meta" id="taskSum" style="margin-top:10px"></div>
       </div>
@@ -263,6 +265,7 @@
         <button type="button" role="tab" id="setTab-timer" data-sec="timer" data-ic="timer">Temporizador</button>
         <button type="button" role="tab" id="setTab-look" data-sec="look" data-ic="image">Apariencia</button>
         <button type="button" role="tab" id="setTab-alert" data-sec="alert" data-ic="bell">Alertas</button>
+        <button type="button" role="tab" id="setTab-proj" data-sec="proj" data-ic="board">Proyectos</button>
         <button type="button" role="tab" id="setTab-bak" data-sec="bak" data-ic="down">Respaldo</button>
         <button type="button" role="tab" id="setTab-data" data-sec="data" data-ic="trash">Datos</button>
       </nav>
@@ -291,6 +294,10 @@
         <div class="setrow"><div><b>Notificaciones del sistema</b><div class="meta" id="ntfInfo" style="margin:0"></div></div><button class="btn sm" type="button" id="ntfAsk" hidden>Activar</button></div>
         <label class="chk"><input type="checkbox" id="cAlSound"> Sonido en las alertas</label>
         <div><button class="btn sm" type="button" id="ntfTest">Probar alerta</button></div>
+      </section>
+      <section class="setsec" id="set-proj" role="tabpanel" aria-labelledby="setTab-proj" hidden>
+        <h3>Proyectos</h3><p class="meta setdesc">Marca como Producción los proyectos de soporte. Sus casos aparecen en la franja de Producción sobre tus tareas, con prioridad (P1 a P4), origen y N° de ticket, y se atienden en modo incidente. Se aplica al momento.</p>
+        <div class="projlist" id="projList"></div>
       </section>
       <section class="setsec" id="set-bak" role="tabpanel" aria-labelledby="setTab-bak" hidden>
         <h3>Respaldo</h3><p class="meta setdesc">Los cambios de esta sección se aplican al momento.</p>
@@ -363,6 +370,6 @@
 </dialog>
 <div class="albar" id="alBar" role="alert" hidden></div>
 <div class="toast" id="toast" hidden></div>
-<script src="js/app.js?v=v28-foco"></script>
+<script src="js/app.js?v=v29-foco"></script>
 </body>
 </html>
