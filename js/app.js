@@ -167,14 +167,17 @@ function renderKanban(){
   { const n=S.tasks.filter(t=>t.star).length; $("#kbStarCnt").textContent=n?String(n):"";
     $(".kbhint").textContent=kbView!=="today"?"Arrastra una tarjeta a otra columna para cambiar su estado.":n?"Solo las tareas con ★ para hoy. Arrastra una tarjeta para cambiar su estado.":"Aún no marcas tareas para hoy. Toca la ☆ junto a una tarea en la lista para agregarla."; }
   const CR={alta:0,media:1,baja:2}, ord=t=>t.order??t.createdAt;
-  $("#kbCols").innerHTML=STATUS.map(([k,l])=>{
-    const list=S.tasks.filter(t=>(t.status||"todo")===k&&(kbView!=="today"||t.star)).sort((a,b)=>(CR[a.crit||"media"]-CR[b.crit||"media"])||ord(a)-ord(b));
-    return `<section class="kbcol st-${k}" data-col="${k}" aria-label="${l}"><h3>${ST_ICON[k]}${l}<span class="n">${list.length}</span></h3>
+  // with Producción projects marked, the board gets two lanes: Producción on top (by priority), then the projects
+  const prodOn=(S.settings.prodTags||[]).length>0, PO={P1:0,P2:1,P3:2,P4:3};
+  const lane=prod=>STATUS.map(([k,l])=>{
+    const list=S.tasks.filter(t=>(t.status||"todo")===k&&(kbView!=="today"||t.star)&&(!prodOn||isProd(t)===prod)).sort(prod?(a,b)=>(PO[a.prio||"P3"]-PO[b.prio||"P3"])||((a.createdAt||0)-(b.createdAt||0)):(a,b)=>(CR[a.crit||"media"]-CR[b.crit||"media"])||ord(a)-ord(b));
+    return `<section class="kbcol st-${k} ${prod?"kbprod":""}" data-col="${k}" aria-label="${l}${prod?" · Producción":""}"><h3>${ST_ICON[k]}${l}<span class="n">${list.length}</span></h3>
       ${list.length?list.map(t=>{ const du=dueInfo(t.due), trk=T.track&&T.track.id===t.id;
-        return `<article class="kbcard ${trk?"tracking":""}" draggable="true" data-id="${t.id}"><div class="kt">${t.star?`<span class="ks" title="Hoy">${ic("star","fill")}</span>`:""}${esc(t.title)}</div>
-          <div class="meta">${sig(t.crit||"media")}${t.tag?`<span class="tag">${esc(t.tag)}</span>`:""}${du&&!t.completed?`<span class="due ${du.cls}">${du.txt}</span>`:""}<span class="spent">${clock(liveSpent(t))}</span></div>
-          <select class="kmove" data-kmove aria-label="Mover a">${statusOpts(k)}</select></article>`; }).join(""):`<div class="kbempty">Sin tareas</div>`}
+        return `<article class="kbcard ${trk?"tracking":""}" draggable="true" data-id="${t.id}"><div class="kt">${t.star?`<span class="ks" title="Hoy">${ic("star","fill")}</span>`:""}${prod&&t.prio?`<span class="pchip ${t.prio}">${t.prio}</span>`:""}${esc(t.title)}</div>
+          <div class="meta">${sig(t.crit||"media")}${t.tag?`<span class="tag">${esc(t.tag)}</span>`:""}${prod&&t.ticket?`<span class="tick">${esc(t.ticket)}</span>`:""}${prod&&!t.completed?`<span class="page ${pLate(t)?"late":""}" title="Abierto hace">${pAge(Date.now()-(t.createdAt||Date.now()))}</span>`:""}${du&&!t.completed?`<span class="due ${du.cls}">${du.txt}</span>`:""}<span class="spent">${clock(liveSpent(t))}</span></div>
+          <select class="kmove" data-kmove aria-label="Mover a">${statusOpts(k)}</select></article>`; }).join(""):`<div class="kbempty">${prod?"Sin casos":"Sin tareas"}</div>`}
     </section>`; }).join("");
+  $("#kbCols").innerHTML=prodOn?`<div class="kblane prod"><span class="pdot"></span>Producción</div>${lane(true)}<div class="kblane">Proyectos</div>${lane(false)}`:lane(false);
 }
 function kbMove(id,st){ const t=taskById(id); if(!t||(t.status||"todo")===st) return; setStatus(t,st); commit(); renderKanban(); toast(`${t.title}: ${STL[st]}`); }
 $("#kanbanBtn").addEventListener("click",e=>{ e.stopPropagation(); $("#kanban").showModal(); renderKanban(); });
@@ -195,6 +198,7 @@ function setStatus(t,st){
     if(fo.includes(t.id)){ S.focus=fo.filter(x=>x!==t.id); const nx=focoIds()[0];
       if(wasNow&&nx){ S.activeTaskId=nx; if(wasRun) setTimeout(()=>{ if(!T.track&&taskById(nx)){ startTrack(nx); toast("Sigues con: "+taskById(nx).title); } },0); } }
     if(st==="done"&&t.rec&&REC[t.rec]&&!t.recNext) recSpawn(t);
+    if(st==="done"&&isProd(t)&&jReady){ jProdLog(t,prodNoteNext); prodNoteNext=""; }
     if(S.activeTaskId===t.id){ const nx=focoIds()[0]?taskById(focoIds()[0]):S.tasks.find(x=>!x.completed); S.activeTaskId=nx?nx.id:null; } }
   else if(!closed&&t.completed){ t.completed=false; t.completedAt=null; }
 }
@@ -253,6 +257,15 @@ function prodRender(force){ const el=$("#prodStrip"); if(!el) return; const on=(
     <label class="fld"><span>Link</span><input type="url" id="pa-url" placeholder="Opcional" autocomplete="off"></label>
     <div class="r"><button class="btn sm" type="button" data-pr="cancel">Cancelar</button><button class="btn sm" type="button" data-pr="save">Crear</button><button class="btn sm prodb" type="button" data-pr="save-go" title="Crea el caso y empieza a atenderlo">Crear y atender</button></div></div>`; }
   if(el.dataset.h!==h){ el.dataset.h=h; el.innerHTML=h; } }
+// closed Producción cases leave a line in today's bitácora (ticket, time, origin and how it was solved)
+var prodNoteNext="", incNoting=false;
+function jProdLog(t,note){ const k=jToday(); if(jCur===k) jSaveNow();
+  const live=jLive(k), base=live?J.days[k].html:jTemplate(k,false), head=!live||!/🚨 Producción/.test(jText(base));
+  const tg=jTagName(t.tag), chip=tg?jTagEl(tg).outerHTML+" ":"", task=`<span class="jtask" data-task="${t.id}" contenteditable="false" title="Ir a la tarea">↗ tarea</span>`;
+  const line=`<div>🚨 ${t.prio?`<b>${t.prio}</b> `:""}${t.ticket?esc(t.ticket)+" · ":""}${esc(t.title)} ${chip}— cerrado ${hhmm(Date.now())}${(t.spent||0)>=60000?" · "+fmtDur(t.spent):""}${t.src&&SRC[t.src]?" · vía "+SRC[t.src]:""} ${task}</div>`+(note?`<div>&nbsp;&nbsp;&nbsp;&nbsp;Solución: ${esc(note)}</div>`:"");
+  J.days[k]={html:base+(head?`<div><br></div><div><b>🚨 Producción</b></div>`:"")+line,updatedAt:Date.now()}; lsSet(LJ,J); jDirty.add(k); jFlushSoon();
+  if(jCur===k&&document.activeElement!==jEd) jOpen(k);
+  setTimeout(()=>toast("Caso cerrado y anotado en la Bitácora"),60); }
 function prodSave(go){ const title=$("#pa-title").value.trim(); if(!title){ toast("Escribe qué pasó."); $("#pa-title").focus(); return; }
   const url=$("#pa-url").value.trim(), nu=url?normUrl(url):""; if(url&&!nu){ toast("Ese link no es válido. Copia la dirección completa."); $("#pa-url").focus(); return; }
   let tag=$("#pa-tag").value.replace(/\s+/g," ").trim()||prodNames()[0]||"Soporte";
@@ -268,8 +281,9 @@ function incStart(id){ const t=taskById(id); if(!t||t.completed) return;
   const cur=(T.track&&T.track.id)||S.activeTaskId, prev=S.incident?S.incident.prev:(cur&&cur!==id?cur:null);
   S.incident={id,prev,start:Date.now()}; startTrack(id);
   toast(prev&&taskById(prev)?"Incidente en curso. Lo que hacías quedó en pausa.":"Incidente en curso."); }
-function incEnd(close){ const inc=S.incident; if(!inc) return; S.incident=null; const t=taskById(inc.id), pv=inc.prev&&taskById(inc.prev);
-  if(close&&t&&!t.completed) setStatus(t,"done");
+function incAskNote(){ if(!S.incident) return; incNoting=true; $("#incBar").dataset.h=""; incRender(); const i=$("#incNote"); if(i) i.focus(); }
+function incEnd(close,note){ const inc=S.incident; if(!inc) return; S.incident=null; incNoting=false; const t=taskById(inc.id), pv=inc.prev&&taskById(inc.prev);
+  if(close&&t&&!t.completed){ prodNoteNext=note||""; setStatus(t,"done"); prodNoteNext=""; }
   if(pv&&!pv.completed){ startTrack(pv.id); toast((close?"Incidente cerrado. ":"")+"Volviste a «"+pv.title+"»"); }
   else { if(!close&&T.track&&T.track.id===inc.id) stopTrack(); commit(); toast(close?"Incidente cerrado.":"Saliste del modo incidente."); } }
 function incCheck(){ const inc=S.incident; if(!inc) return; const t=taskById(inc.id);
@@ -282,7 +296,7 @@ function incRender(){ const el=$("#incBar"); if(!el) return; const inc=S.inciden
   if(!on){ if(!el.hidden){ el.hidden=true; el.innerHTML=""; el.dataset.h=""; } return; }
   const pv=inc.prev&&taskById(inc.prev), back=!!(pv&&!pv.completed);
   const h=`<div class="l1"><span aria-hidden="true">🚨</span> Incidente ${t.prio?`<span class="pchip ${t.prio}">${t.prio}</span>`:""}${t.ticket?`<span>${esc(t.ticket)}</span>`:""}<span class="el" id="incEl" title="Tiempo desde que empezaste a atenderlo"></span></div>
-    <div class="l2"><span class="pv">${back?`En pausa: <b>${esc(pv.title)}</b>`:"Sin tarea en pausa."}</span><button class="btn sm ghost" type="button" data-inc="back" title="${back?"Vuelve a tu tarea y deja el caso abierto":"Sale del modo incidente y deja el caso abierto"}">${back?"Volver sin cerrar":"Salir"}</button><button class="btn sm" type="button" data-inc="close">${back?"Cerrar y volver":"Cerrar incidente"}</button></div>`;
+    ${incNoting?`<div class="l2"><input type="text" id="incNote" placeholder="¿Cómo se resolvió? (opcional, queda en la Bitácora)" aria-label="Cómo se resolvió" autocomplete="off"><button class="btn sm ghost" type="button" data-inc="cancel">Cancelar</button><button class="btn sm" type="button" data-inc="done">${back?"Cerrar y volver":"Cerrar incidente"}</button></div>`:`<div class="l2"><span class="pv">${back?`En pausa: <b>${esc(pv.title)}</b>`:"Sin tarea en pausa."}</span><button class="btn sm ghost" type="button" data-inc="back" title="${back?"Vuelve a tu tarea y deja el caso abierto":"Sale del modo incidente y deja el caso abierto"}">${back?"Volver sin cerrar":"Salir"}</button><button class="btn sm" type="button" data-inc="close">${back?"Cerrar y volver":"Cerrar incidente"}</button></div>`}`;
   el.hidden=false; if(el.dataset.h!==h){ el.dataset.h=h; el.innerHTML=h; } $("#incEl").textContent=incClock(Date.now()-inc.start); }
 function projSetRender(){ const m=new Map(); S.tasks.forEach(t=>{ if(!t.tag) return; const k=pkey(t.tag); if(!m.has(k)) m.set(k,{name:t.tag,n:0}); if(!t.completed) m.get(k).n++; });
   const L=[...m.entries()].sort((a,b)=>a[1].name.localeCompare(b[1].name,"es"));
@@ -485,7 +499,10 @@ $("#prodStrip").addEventListener("click",e=>{ const b=e.target.closest("[data-pr
 $("#prodStrip").addEventListener("keydown",e=>{ if(!e.target.closest(".padd")) return;
   if(e.key==="Escape"){ e.preventDefault(); e.stopPropagation(); prodAdd=false; prodRender(true); }
   else if(e.key==="Enter"&&e.target.matches("input")){ e.preventDefault(); prodSave(false); } });
-$("#incBar").addEventListener("click",e=>{ const b=e.target.closest("[data-inc]"); if(b) incEnd(b.dataset.inc==="close"); });
+$("#incBar").addEventListener("click",e=>{ const b=e.target.closest("[data-inc]"); if(!b) return; const a=b.dataset.inc;
+  if(a==="close") incAskNote(); else if(a==="done") incEnd(true,($("#incNote")||{}).value?.trim()); else if(a==="cancel"){ incNoting=false; incRender(); } else incEnd(false); });
+$("#incBar").addEventListener("keydown",e=>{ if(e.target.id!=="incNote") return;
+  if(e.key==="Enter"){ e.preventDefault(); incEnd(true,e.target.value.trim()); } else if(e.key==="Escape"){ e.preventDefault(); e.stopPropagation(); incNoting=false; incRender(); } });
 $("#projList").addEventListener("change",e=>{ const k=e.target.dataset.pk; if(k==null) return; const st=new Set(S.settings.prodTags||[]); if(e.target.checked) st.add(k); else st.delete(k); S.settings.prodTags=[...st]; commit(); projSetRender(); });
 setInterval(()=>{ if(S.incident) incRender(); },1000);
 setInterval(()=>prodRender(),60000);
@@ -1823,16 +1840,19 @@ $("#cal").addEventListener("cancel",e=>{ if(calJDay){ e.preventDefault(); calJSh
 $("#cal").addEventListener("close",()=>calJShow(null));
 function calAddBox(k){ return calAdd===k?`<div class="caladd"><input type="text" data-caladd="${k}" placeholder="Nueva tarea y Enter" aria-label="Nueva tarea para ${esc(calDayName(k,{weekday:"long",day:"numeric",month:"long"}))}"></div>`
   :`<button class="calplus" type="button" data-calplus="${k}" title="Agregar una tarea que vence este día">+ Agregar</button>`; }
+var calIncM={};
+function calIncB(k){ const L=calIncM[k]; return L&&L.length?`<span class="calinc" title="${L.length===1?"1 caso de Producción abierto":L.length+" casos de Producción abiertos"} este día: ${esc(L.map(t=>t.title).join(", "))}">🚨 ${L.length}</span>`:""; }
 function calRender(){
   const dlg=$("#cal"); if(!dlg.open) return;
   const ae=document.activeElement; if(ae&&ae.matches&&ae.matches("[data-caladd]")) return;
+  calIncM={}; S.tasks.forEach(t=>{ if(isProd(t)&&t.createdAt){ const k=dayKey(t.createdAt); (calIncM[k]=calIncM[k]||[]).push(t); } });
   document.querySelectorAll("[data-calv]").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.calv===calView)));
   const today=dayKey(Date.now()), box=$("#calBody"); box.className="calbody v-"+calView; $("#calHint").hidden=calView==="day";
   if(calView==="week"){
     const a=kMon(calDay), z=kAdd(a,6), M=calData(a,z), A=kParse(a), Z=kParse(z);
     $("#calRange").textContent=A.getMonth()===Z.getMonth()?`${A.getDate()} – ${Z.toLocaleDateString("es",{day:"numeric",month:"short",year:"numeric"})}`:`${A.toLocaleDateString("es",{day:"numeric",month:"short"})} – ${Z.toLocaleDateString("es",{day:"numeric",month:"short",year:"numeric"})}`;
     let h=""; for(let k=a;k<=z;k=kAdd(k,1)){ const d=M[k]||{due:[],rep:[],done:[],ms:0}, n=d.due.length+d.rep.length+d.done.length;
-      h+=`<section class="calcol ${k===today?"today":""} ${k<today?"past":""}" data-day="${k}"><h3><button type="button" class="calday" data-calday="${k}" title="Ver este día">${calDayName(k)}</button>${calJBtn(k)}${d.ms?`<span class="ms" title="Tiempo trabajado">${fmtDur(d.ms)}</span>`:""}</h3>
+      h+=`<section class="calcol ${k===today?"today":""} ${k<today?"past":""}" data-day="${k}"><h3><button type="button" class="calday" data-calday="${k}" title="Ver este día">${calDayName(k)}</button>${calJBtn(k)}${calIncB(k)}${d.ms?`<span class="ms" title="Tiempo trabajado">${fmtDur(d.ms)}</span>`:""}</h3>
         ${d.due.map(t=>calCard(t,"due",k)).join("")}${d.rep.map(t=>calCard(t,"rep",k)).join("")}${d.done.map(t=>calCard(t,"done",k)).join("")}
         ${n?"":`<div class="calempty">Sin tareas</div>`}${calAddBox(k)}</section>`; }
     box.innerHTML=h;
@@ -1841,7 +1861,7 @@ function calRender(){
     $("#calRange").textContent=d0.toLocaleDateString("es",{month:"long",year:"numeric"}).replace(/^./,c=>c.toUpperCase());
     let h=["lun","mar","mié","jue","vie","sáb","dom"].map(x=>`<div class="calwd">${x}</div>`).join("");
     for(let k=a;k<=z;k=kAdd(k,1)){ const d=M[k]||{due:[],rep:[],done:[]}, items=[...d.due.map(t=>[t,"due"]),...d.rep.map(t=>[t,"rep"]),...d.done.map(t=>[t,"done"])];
-      h+=`<section class="calcell ${kParse(k).getMonth()!==mon?"out":""} ${k===today?"today":""}" data-day="${k}"><div class="calctop"><button type="button" class="calday" data-calday="${k}" title="Ver este día">${kParse(k).getDate()}</button>${calJBtn(k)}</div>
+      h+=`<section class="calcell ${kParse(k).getMonth()!==mon?"out":""} ${k===today?"today":""}" data-day="${k}"><div class="calctop"><button type="button" class="calday" data-calday="${k}" title="Ver este día">${kParse(k).getDate()}</button>${calJBtn(k)}${calIncB(k)}</div>
         ${items.slice(0,3).map(([t,kind])=>`<div class="calchip ${kind} ${kind==="due"&&k<today?"late":""}" ${kind==="due"?'draggable="true"':""} data-id="${t.id}" title="${esc(t.title)}">${kind==="done"?ic("check")+" ":kind==="rep"?ic("rep")+" ":""}${esc(t.title)}</div>`).join("")}
         ${items.length>3?`<button type="button" class="calmore" data-calday="${k}">+${items.length-3} más</button>`:""}</section>`; }
     box.innerHTML=h;
@@ -1855,6 +1875,7 @@ function calRender(){
     { const r=$("#calRange"); r.textContent=r.textContent.replace(/^./,c=>c.toUpperCase()); }
     box.innerHTML=`<section class="calcol calone ${k===today?"today":""}" data-day="${k}">
       ${sec("Atrasadas",late,"due")}${sec(k===today?"Vencen hoy":"Vencen este día",d.due,"due")}${sec(ic("star","fill")+" Marcadas para hoy",star,"due")}${sec("Repeticiones previstas",d.rep,"rep")}${sec("Cerradas",d.done,"done")}
+      ${(calIncM[k]||[]).length?`<div class="calsec"><h3>🚨 Producción · casos abiertos este día · ${calIncM[k].length}</h3><div class="callist">${calIncM[k].map(t=>calCard(t,t.completed?"done":"inc",k)).join("")}</div></div>`:""}
       ${calJHas(k)?`<div class="calsec"><h3>${ic("book")} Bitácora <button class="btn sm" type="button" data-cajgo="${k}">Abrir en bitácora</button></h3><div class="jed calj-body" data-cajday="${k}"></div></div>`:""}
       ${worked.length?`<div class="calsec"><h3>Tiempo trabajado · ${fmtDur(d.ms)}</h3><ul class="wklist">${worked.map(([t,ms])=>`<li>${esc(t.title)} ${t.tag?`<span class="tag">${esc(t.tag)}</span>`:""}<span class="v">${fmtDur(ms)}</span></li>`).join("")}</ul></div>`:""}
       ${late.length+d.due.length+star.length+d.rep.length+d.done.length+worked.length+(calJHas(k)?1:0)?"":`<div class="calempty">Nada para este día.</div>`}
@@ -2053,11 +2074,14 @@ function focoAskHtml(t){ const f=focoIds();
 function focoRender(){ const el=$("#foco"); if(!el) return; const f=focoIds(), view=document.body.classList.contains("focoview"), trkId=T.track&&T.track.id, sug=focoSug();
   const sugB=sug?` <button class="nlink" type="button" data-fo="sug" title="${esc(taskById(sug).title)}">sugerir de ★ Hoy</button>`:"";
   let h=`<div class="fohead"><span class="fot">${ic("target")} Foco</span><span class="foc">${f.length} de 3</span><span style="flex:1"></span><button class="btn sm ghost" type="button" data-fo="view" title="${view?"Volver a la vista normal (F o Esc)":"Ver solo el reloj y Foco (F)"}">${ic("expand")} ${view?"Salir de vista Foco":"Vista Foco"}</button></div>`;
+  { const inc=S.incident, it=inc&&taskById(inc.id); if(it&&!it.completed&&!f.includes(it.id))
+    h+=`<div class="foslot fourg" data-id="${it.id}"><div class="fotop"><span class="fon">!</span><div class="fob"><div class="fol">Urgente · incidente${it.prio?" "+it.prio:""}</div><button class="fott" type="button" data-fo="go" title="Abrir la tarea">${esc(it.title)}</button><div class="fom">${[it.ticket,it.tag].filter(Boolean).map(esc).join(" · ")}</div></div>
+      <span class="foa"><button class="btn sm" type="button" data-fo="incclose" title="Cierra el incidente y vuelve a lo que hacías">Cerrar y volver</button></span></div></div>`; }
   if(!f.length) h+=`<div class="foempty">Elige hasta 3 tareas: la que haces <b>ahora</b> y las <b>dos que vienen</b>. Usa ${ic("target")} en cada tarea de la lista${sug?", o":"."}${sugB}</div>`;
   else for(let i=0;i<3;i++){ const id=f[i], t=id&&taskById(id);
     if(!t){ h+=`<div class="foslot empty">${FOCO_LB[i]}: espacio libre.${sugB}</div>`; continue; }
     const du=dueInfo(t.due), trk=trkId===t.id, todos=(t.todos||[]).filter(x=>!x.done);
-    h+=`<div class="foslot ${i===0?"fonow":""}" data-id="${t.id}"><div class="fotop"><span class="fon">${i+1}</span><div class="fob"><div class="fol">${FOCO_LB[i]}${trk?" · en curso":""}</div><button class="fott" type="button" data-fo="go" title="Abrir la tarea">${esc(t.title)}</button><div class="fom">${t.tag?esc(t.tag):""}${du?`${t.tag?" · ":""}<span class="due ${du.cls}">${du.txt}</span>`:""}</div></div>
+    h+=`<div class="foslot ${i===0?"fonow":""}" data-id="${t.id}"><div class="fotop"><span class="fon">${i+1}</span><div class="fob"><div class="fol">${FOCO_LB[i]}${trk?" · en curso":i===0&&S.incident&&S.incident.prev===t.id?" · en pausa por incidente":""}</div><button class="fott" type="button" data-fo="go" title="Abrir la tarea">${esc(t.title)}</button><div class="fom">${t.tag?esc(t.tag):""}${du?`${t.tag?" · ":""}<span class="due ${du.cls}">${du.txt}</span>`:""}</div></div>
       <span class="foa">${i===0?`<button class="icon fplay" type="button" data-fo="track" title="${trk?"Detener":"Iniciar"}" aria-label="${trk?"Detener":"Iniciar"}">${trk?ICON_STOP:ICON_PLAY}</button><button class="icon" type="button" data-fo="done" title="Cerrar la tarea: sube la siguiente" aria-label="Cerrar la tarea">${ic("check")}</button>`:`<button class="icon" type="button" data-fo="top" title="Pasar a Ahora" aria-label="Pasar a Ahora">${ic("up")}</button>`}<button class="icon" type="button" data-fo="out" title="Sacar de Foco (sigue en tu lista)" aria-label="Sacar de Foco">${ic("x")}</button></span></div>
       ${i>0&&todos.length?`<ul class="fotd">${todos.slice(0,3).map(x=>`<li>${esc(x.text)}</li>`).join("")}${todos.length>3?`<li class="more">y ${todos.length-3} más</li>`:""}</ul>`:""}
       <input class="foidea" type="text" placeholder="Anotar idea para esta tarea… (Enter)" aria-label="Idea para ${esc(t.title)}"></div>`; }
@@ -2069,6 +2093,7 @@ function focoView(on){ document.body.classList.toggle("focoview",on); lsSet("pp-
 $("#foco").addEventListener("click",e=>{ const b=e.target.closest("[data-fo]"); if(!b) return; const a=b.dataset.fo, sl=b.closest("[data-id]"), id=sl&&sl.dataset.id, t=id&&taskById(id);
   if(a==="view"){ focoView(!document.body.classList.contains("focoview")); return; }
   if(a==="sug"){ const s=focoSug(); if(s) focoAdd(s); return; }
+  if(a==="incclose"){ incAskNote(); return; }
   if(!t) return;
   if(a==="go"){ if(document.body.classList.contains("focoview")) focoView(false); goToTask(id); }
   else if(a==="track"){ if(T.track&&T.track.id===id){ stopTrack(); commit(); } else startTrack(id); }
