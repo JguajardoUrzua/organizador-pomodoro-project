@@ -339,6 +339,13 @@ li.task.prod{box-shadow:inset 3px 0 0 var(--prod)}
 .prodf[hidden]{display:none}
 .incbar{background:var(--prod);color:#fff;border-radius:12px;padding:8px 12px;margin:14px auto 0;max-width:460px;display:grid;gap:6px;font-size:.86rem;box-shadow:0 4px 14px rgb(0 0 0/.22)}
 .incbar[hidden]{display:none}
+.kblane{grid-column:1/-1;font-size:.8rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-2);padding:4px 2px 0;display:flex;align-items:center;gap:6px}
+.kblane.prod{color:var(--prod)}
+.kbcol.kbprod{min-height:90px;background:color-mix(in srgb,var(--prod) 8%,var(--surface-2))}
+.kbcard .pchip{margin-right:2px}
+.calinc{font-size:.68rem;font-weight:700;color:#fff;background:var(--prod);border-radius:999px;padding:0 6px;margin-left:4px;white-space:nowrap;line-height:1.6}
+.incbar input{flex:1 1 200px;min-width:0;border:0;border-radius:8px;padding:5px 9px;font:inherit;font-size:.84rem;color:#1d2024;background:#fff}
+
 .incbar .l1{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-weight:600}
 .incbar .pchip{background:#fff;color:var(--p1)}
 .incbar .el{margin-left:auto;font:600 .95rem ui-monospace,monospace}
