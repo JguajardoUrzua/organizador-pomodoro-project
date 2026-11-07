@@ -1,4 +1,4 @@
-# Tareas · Pomodoro
+# Focus · Pomodoro
 
 Temporizador Pomodoro con tareas, bitácora, notas, calendario y música. Es una página estática: no necesita servidor ni base de datos, y se puede instalar como app (PWA) y usar sin conexión.
 

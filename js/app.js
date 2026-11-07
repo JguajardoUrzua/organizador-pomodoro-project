@@ -103,7 +103,7 @@ function tick(){
   if(lk){ $("#sub").setAttribute("role","button"); $("#sub").tabIndex=0; } else { $("#sub").removeAttribute("role"); $("#sub").removeAttribute("tabindex"); }
   $("#cyc").innerHTML=Array.from({length:every},(_,i)=>`<i class="${i<n?"on":""}"></i>`).join("");
   const label={focus:"Enfoque",short:"Pausa",long:"Pausa larga"}[T.mode];
-  BASE_TITLE=(T.running||ms<durMs(T.mode))?`${txt} · ${label}`:"Tareas"; if(!alBlinkT) document.title=BASE_TITLE;
+  BASE_TITLE=(T.running||ms<durMs(T.mode))?`${txt} · ${label}`:"Focus"; if(!alBlinkT) document.title=BASE_TITLE;
   updateFloat(txt,label,frac);
   if(typeof syncAmbient==="function") syncAmbient();
   if(T.track){ const t=taskById(T.track.id); if(t){ const v=clock(liveSpent(t)); document.querySelectorAll(`[data-spent="${t.id}"]`).forEach(el=>el.textContent=v); } }
@@ -1469,6 +1469,42 @@ $("#jCopy").addEventListener("click",async()=>{ jSaveNow(); if(!jLive(jCur)){ to
        else await navigator.clipboard.writeText(txt); toast("Día copiado"); return; }catch{}
   const ta=document.createElement("textarea"); ta.value=txt; ta.style.cssText="position:fixed;opacity:0"; document.body.appendChild(ta); ta.select();
   let ok=false; try{ ok=document.execCommand("copy"); }catch{} ta.remove(); toast(ok?"Día copiado":"No se pudo copiar; selecciona el texto y usa Ctrl+C."); });
+// Markdown for Notion, Neurona and the like: title (font size 5) -> #, bold/italic/strike, lists and to-dos, code blocks, tables, links and #tags
+function jMd(src){ const root=document.createElement("div"); root.innerHTML=jClean(src); const B=[];
+  const inl=n=>{ let o=""; n.childNodes.forEach(c=>{ if(c.nodeType===3){ o+=c.data; return; } if(c.nodeType!==1) return; const tg=c.tagName, cl=c.classList;
+    if(cl.contains("jtask")) return; if(cl.contains("jtag")){ o+=c.textContent; return; }
+    if(tg==="BR"){ o+="\n"; return; }
+    if(tg==="A"){ const t=c.textContent.replace(/^📎\s*/,"").trim(), h=c.getAttribute("href")||""; o+=h?`[${t||h}](${h})`:t; return; }
+    const x=inl(c), w=m=>{ const k=x.match(/^(\s*)([\s\S]*?)(\s*)$/); return k[2]?k[1]+m+k[2]+m+k[3]:x; };
+    o+=tg==="B"||tg==="STRONG"?w("**"):tg==="I"||tg==="EM"?w("*"):tg==="S"||tg==="STRIKE"?w("~~"):x; }); return o; };
+  const para=nodes=>{ const tmp=document.createElement("div"); nodes.forEach(n=>tmp.appendChild(n.cloneNode(true)));
+    const f=tmp.querySelector("font[size]"), sz=f?+f.getAttribute("size"):0, whole=f&&tmp.textContent.trim()===f.textContent.trim();
+    inl(tmp).replace(/ /g," ").split("\n").forEach(l=>{ l=l.trim();
+      if(!l){ B.push({k:"blank"}); return; }
+      if(/^[-—_]{5,}$/.test(l)){ B.push({k:"p",t:"---"}); return; }
+      if(whole&&sz>=4) l=(sz>=5?"# ":"## ")+l.replace(/^\*\*([\s\S]*)\*\*$/,"$1");
+      B.push({k:"p",t:l}); }); };
+  let lg=0; const list=(el,depth)=>{ const ol=el.tagName==="OL", chk=el.classList.contains("jchk"); let i=0; if(!depth) lg++;
+    [...el.children].forEach(li=>{ if(li.tagName!=="LI") return; i++;
+      const tmp=document.createElement("div"); [...li.childNodes].filter(n=>!(n.nodeType===1&&(n.tagName==="UL"||n.tagName==="OL"))).forEach(n=>tmp.appendChild(n.cloneNode(true)));
+      B.push({k:"li",g:lg,t:"  ".repeat(depth)+(chk?(li.classList.contains("ok")?"- [x] ":"- [ ] "):ol?i+". ":"- ")+inl(tmp).replace(/ /g," ").replace(/\s*\n\s*/g," ").trim()});
+      [...li.children].filter(n=>n.tagName==="UL"||n.tagName==="OL").forEach(sub=>list(sub,depth+1)); }); };
+  const walk=el=>{ let run=[]; const flush=()=>{ if(run.length){ para(run); run=[]; } };
+    el.childNodes.forEach(c=>{ const tg=c.nodeType===1?c.tagName:"";
+      if(tg==="DIV"||tg==="P"){ flush(); if(c.querySelector("div,p,ul,ol,pre,table")) walk(c); else para([...c.childNodes]); }
+      else if(tg==="UL"||tg==="OL"){ flush(); list(c,0); }
+      else if(tg==="PRE"){ flush(); B.push({k:"raw",t:"```\n"+jPreText(c).replace(/\n$/,"")+"\n```"}); }
+      else if(tg==="TABLE"){ flush(); const rows=[...c.querySelectorAll("tr")].map(tr=>[...tr.children].map(td=>inl(td).replace(/ /g," ").replace(/\s*\n\s*/g," ").replace(/\|/g,"\\|").trim()));
+        if(rows.length){ const n=Math.max(...rows.map(r=>r.length)), row=r=>"| "+[...r,...Array(n-r.length).fill("")].join(" | ")+" |";
+          B.push({k:"raw",t:[row(rows[0]),"| "+Array(n).fill("---").join(" | ")+" |",...rows.slice(1).map(row)].join("\n")}); } }
+      else run.push(c); }); flush(); };
+  walk(root);
+  let out="", prev=null, pg=0; B.forEach(b=>{ if(b.k==="blank"){ prev="blank"; return; } if(out) out+=b.k==="li"&&prev==="li"&&b.g===pg?"\n":"\n\n"; out+=b.t; prev=b.k; pg=b.g; });
+  return out+"\n"; }
+async function jCopyText(txt,ok){ try{ await navigator.clipboard.writeText(txt); toast(ok); return; }catch{}
+  const ta=document.createElement("textarea"); ta.value=txt; ta.style.cssText="position:fixed;opacity:0"; document.body.appendChild(ta); ta.select();
+  let done=false; try{ done=document.execCommand("copy"); }catch{} ta.remove(); toast(done?ok:"No se pudo copiar; descarga el .md desde el menú Más."); }
+$("#jCopyMd").addEventListener("click",()=>{ jSaveNow(); if(!jLive(jCur)){ toast("Este día está vacío."); return; } jCopyText(jMd(J.days[jCur].html),"Día copiado como Markdown"); });
 // journal-only backup: html keeps the formatting, text is there to read it anywhere; Importar merges it back by day
 function jJson(ks){ const days={}; ks.forEach(k=>{ const d=J.days[k]; days[k]={html:d.html,text:jText(d.html),updatedAt:d.updatedAt}; });
   return JSON.stringify({app:"panel-pomodoro-bitacora",version:1,exportedAt:new Date().toISOString(),journal:{days}},null,2); }
@@ -1477,7 +1513,8 @@ function jPopShow(on){ $("#jPop").hidden=!on; $("#jMore").setAttribute("aria-exp
 $("#jMore").addEventListener("click",e=>{ e.stopPropagation(); $("#jSideItem").textContent=$("#journal").classList.contains("side")?"Acoplar como pestaña":"Abrir al costado"; jPopShow($("#jPop").hidden); });
 document.addEventListener("click",e=>{ if(!e.target.closest(".jmenu")) jPopShow(false); });
 $("#jPop").addEventListener("click",e=>{ const b=e.target.closest("[data-j]"); if(!b) return; jPopShow(false); jSaveNow(); const a=b.dataset.j;
-  if(a==="dl-day"){ if(!jLive(jCur)){ toast("Este día está vacío."); return; } saveFile(`bitacora-${jCur}.json`,jJson([jCur]),"application/json","Día"); }
+  if(a==="md-day"){ if(!jLive(jCur)){ toast("Este día está vacío."); return; } saveFile(`bitacora-${jCur}.md`,jMd(J.days[jCur].html),"text/markdown","Día"); }
+  else if(a==="dl-day"){ if(!jLive(jCur)){ toast("Este día está vacío."); return; } saveFile(`bitacora-${jCur}.json`,jJson([jCur]),"application/json","Día"); }
   else if(a==="dl-all"){ const ks=jDays(); if(!ks.length){ toast("La bitácora está vacía."); return; } saveFile(`bitacora-completa-${jToday()}.json`,jJson(ks),"application/json","Bitácora"); }
   else if(a==="side"){ $("#journal").classList.contains("side")?jDock():jSideOpen(); }
   else if(a==="del"){ if(!jLive(jCur)){ toast("Este día ya está vacío."); return; }
@@ -2033,7 +2070,7 @@ function renderBgPick(){ const id0=S.settings.bg||BG_DEF, id=BGS.some(b=>b.id===
 $("#bgPick").addEventListener("click",e=>{ const b=e.target.closest("[data-bg]"); if(!b) return; S.settings.bg=b.dataset.bg; renderBgPick(); commit(); });
 
 // ---------- task alerts: notification, sound and blinking tab title while the app is open ----------
-var BASE_TITLE="Tareas", alBlinkT=null, ALQ=[];
+var BASE_TITLE="Focus", alBlinkT=null, ALQ=[];
 function p2(n){ return String(n).padStart(2,"0"); }
 function alLocal(ms){ const d=new Date(ms); return `${d.getFullYear()}-${p2(d.getMonth()+1)}-${p2(d.getDate())}T${p2(d.getHours())}:${p2(d.getMinutes())}`; }
 function alFmt(ms){ const d=new Date(ms), k=dayKey(ms), today=dayKey(Date.now()), tm=new Date(); tm.setDate(tm.getDate()+1);

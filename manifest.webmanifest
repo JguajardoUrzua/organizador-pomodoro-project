@@ -1,6 +1,6 @@
 {
-  "name": "Tareas · Pomodoro",
-  "short_name": "Tareas",
+  "name": "Focus · Pomodoro",
+  "short_name": "Focus",
   "description": "Temporizador Pomodoro con tareas, bitácora, notas y calendario.",
   "lang": "es",
   "start_url": "./",
