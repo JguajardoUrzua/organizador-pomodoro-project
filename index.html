@@ -13,7 +13,7 @@
 <meta name="apple-mobile-web-app-title" content="Focus">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap">
-<link rel="stylesheet" href="css/styles.css?v=v29">
+<link rel="stylesheet" href="css/styles.css?v=v30">
 </head>
 <body>
 <canvas id="scene" aria-hidden="true"></canvas>
@@ -22,10 +22,10 @@
     <h1>Focus</h1>
     <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:flex-end">
       <span class="sync" id="sync">Guardado en este navegador</span>
+      <button class="btn sm iconbtn" id="ckBtn" type="button" title="Buscar (Ctrl+K)" aria-label="Buscar"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="4.6"/><path d="M10.4 10.4 14 14"/></svg></button>
       <button class="btn sm" id="tHeadBtn" type="button" title="Abrir las tareas al costado">Tareas</button>
       <button class="btn sm" id="jHeadBtn" type="button" title="Abrir la bitácora al costado">Bitácora</button>
       <button class="btn sm" id="wkBtn" type="button" title="Tiempo por proyecto, tareas cerradas y bitácora de la semana">Resumen</button>
-      <button class="btn sm iconbtn" id="ckBtn" type="button" title="Buscar (Ctrl+K)" aria-label="Buscar"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="4.6"/><path d="M10.4 10.4 14 14"/></svg></button>
       <button class="btn sm" id="openSettings" type="button">Ajustes</button>
     </div>
   </header>
@@ -358,6 +358,6 @@
 </dialog>
 <div class="albar" id="alBar" role="alert" hidden></div>
 <div class="toast" id="toast" hidden></div>
-<script src="js/app.js?v=v29"></script>
+<script src="js/app.js?v=v30"></script>
 </body>
 </html>
