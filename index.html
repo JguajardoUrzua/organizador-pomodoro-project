@@ -3,23 +3,23 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Tareas</title>
+<title>Focus</title>
 <meta name="description" content="Temporizador Pomodoro con tareas, bitácora, notas y calendario.">
 <meta name="theme-color" content="#c8452c">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icons/favicon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="Tareas">
+<meta name="apple-mobile-web-app-title" content="Focus">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap">
-<link rel="stylesheet" href="css/styles.css?v=v32-foco">
+<link rel="stylesheet" href="css/styles.css?v=v33-foco">
 </head>
 <body>
 <canvas id="scene" aria-hidden="true"></canvas>
 <div class="wrap">
   <header class="top">
-    <h1>Organizador de Tareas</h1>
+    <h1>Focus</h1>
     <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:flex-end">
       <span class="sync" id="sync">Guardado en este navegador</span>
       <button class="btn sm" id="tHeadBtn" type="button" title="Abrir las tareas al costado">Tareas</button>
@@ -136,8 +136,10 @@
           <div class="jnav">
             <div class="tsearch jsearch"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input type="search" id="jSearch" placeholder="Buscar en la bitácora…" aria-label="Buscar en la bitácora" autocomplete="off"></div>
             <button class="btn sm" type="button" id="jCopy" title="Copiar el día para pegarlo en otro lado">Copiar</button>
+            <button class="btn sm" type="button" id="jCopyMd" title="Copiar el día como Markdown, para pegarlo en Notion, Neurona u otra app">Copiar MD</button>
             <div class="jmenu"><button class="btn sm" type="button" id="jMore" aria-haspopup="true" aria-expanded="false">Más ▾</button>
               <div class="pop" id="jPop" hidden role="menu">
+                <button type="button" role="menuitem" data-j="md-day">Descargar este día (.md)</button>
                 <button type="button" role="menuitem" data-j="dl-day">Descargar este día (.json)</button>
                 <button type="button" role="menuitem" data-j="dl-all">Descargar toda la bitácora (.json)</button>
                 <button type="button" role="menuitem" data-j="side" id="jSideItem">Abrir al costado</button>
@@ -370,6 +372,6 @@
 </dialog>
 <div class="albar" id="alBar" role="alert" hidden></div>
 <div class="toast" id="toast" hidden></div>
-<script src="js/app.js?v=v32-foco"></script>
+<script src="js/app.js?v=v33-foco"></script>
 </body>
 </html>
