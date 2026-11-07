@@ -5,21 +5,22 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Focus</title>
 <meta name="description" content="Temporizador Pomodoro con tareas, bitácora, notas y calendario.">
-<meta name="theme-color" content="#c8452c">
+<meta name="theme-color" content="#1b1d29">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icons/favicon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Focus">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap">
-<link rel="stylesheet" href="css/styles.css?v=v34-foco">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500&family=Space+Grotesk:wght@500;700&display=swap">
+<link rel="stylesheet" href="css/styles.css?v=v35-foco">
 </head>
 <body>
 <canvas id="scene" aria-hidden="true"></canvas>
 <div class="wrap">
   <header class="top">
-    <h1>Focus</h1>
+    <h1 class="brand" aria-label="Focus"><span aria-hidden="true">F</span><svg class="bring" viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="17" fill="none" stroke="#f7b267" stroke-width="7"/><circle cx="24" cy="24" r="17" fill="none" stroke="#e8553d" stroke-width="7" stroke-linecap="round" stroke-dasharray="80 107" transform="rotate(-90 24 24)"/></svg><span aria-hidden="true">CUS</span></h1>
     <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:flex-end">
       <span class="sync" id="sync">Guardado en este navegador</span>
       <button class="btn sm iconbtn" id="ckBtn" type="button" title="Buscar (Ctrl+K)" aria-label="Buscar"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="4.6"/><path d="M10.4 10.4 14 14"/></svg></button>
@@ -372,6 +373,6 @@
 </dialog>
 <div class="albar" id="alBar" role="alert" hidden></div>
 <div class="toast" id="toast" hidden></div>
-<script src="js/app.js?v=v34-foco"></script>
+<script src="js/app.js?v=v35-foco"></script>
 </body>
 </html>

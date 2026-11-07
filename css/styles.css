@@ -8,7 +8,7 @@ body{margin:0;font-size:14px}img{max-width:100%}
   --danger:#b3261e; --warn:#9a6208;
   --glass:rgb(250 251 252/.44); --chrome:rgb(255 255 255/.7); --glass-2:rgb(255 255 255/.42); --glass-line:rgb(255 255 255/.55);
   --sig-low:#2e9a52; --sig-mid:#d9a404; --sig-high:#d23a2a;
-  --f-display:"Bricolage Grotesque",ui-sans-serif,system-ui,sans-serif;
+  --f-display:"Space Grotesk","Bricolage Grotesque",ui-sans-serif,system-ui,sans-serif;
   --f-body:"IBM Plex Sans",ui-sans-serif,system-ui,sans-serif;
   --f-mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
   --r:10px;
@@ -31,6 +31,9 @@ button{cursor:pointer}
 .wrap{max-width:1180px;margin:0 auto;padding-block:20px 40px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:grid;gap:16px}
 header.top{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:2px 2px 0}
 header.top h1{font-size:1.9rem;color:#fff;text-shadow:0 1px 2px rgb(0 0 0/.55),0 2px 14px rgb(0 0 0/.45)}
+/* brand: Space Grotesk caps, the O is the two-color timer ring */
+header.top h1.brand{display:inline-flex;align-items:center;font-family:"Space Grotesk",var(--f-display);font-weight:700;font-size:2.1rem;letter-spacing:.16em;line-height:1}
+h1.brand .bring{width:.95em;height:.95em;margin-right:.16em;flex:none;filter:drop-shadow(0 1px 2px rgb(0 0 0/.5)) drop-shadow(0 2px 10px rgb(0 0 0/.35))}
 header.top .sync{color:var(--ink-2);padding:3px 10px;border-radius:999px;background:var(--chrome);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}
 #scene{position:fixed;inset:0;width:100%;height:100%;z-index:0;display:block}
 .wrap{position:relative;z-index:1}
