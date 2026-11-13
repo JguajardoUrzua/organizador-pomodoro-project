@@ -2290,6 +2290,7 @@ async function brainPull(){
     render(); brainOk(); brainUi(); setSync("Guardado en Brain"); toast("Datos traídos desde Brain");
   },{title:"Traer desde Brain",yes:"Traer"});
 }
+let brainBoot=Promise.resolve();
 if(BRAIN_API){
   $("#brainSave").addEventListener("click",brainSaveNow);
   $("#brainPull").addEventListener("click",brainPull);
@@ -2297,9 +2298,28 @@ if(BRAIN_API){
   setInterval(brainUi,20000);
   // Si queda algo sin llegar a Brain, el navegador pregunta antes de cerrar.
   addEventListener("beforeunload",e=>{ if(brainPending()&&docRef){ e.preventDefault(); e.returnValue=""; } });
-  brainStart();
+  brainBoot=brainStart();
 }
 brainUi();
+// Brain → Focus: «Enviar a Focus» en Ticket agrega el ticket como caso de Producción.
+// Espera a que termine la conexión con Brain para no mezclarlo con datos que aún no llegan.
+addEventListener("message",async e=>{
+  if(parent===window||e.source!==parent||e.origin!==location.origin) return;
+  const m=e.data; if(!m||m.type!=="brain:add-task"||!m.task||typeof m.task!=="object") return;
+  await brainBoot;
+  const r=addTicketTask(m.task);
+  parent.postMessage({type:"focus:task-added",id:m.id,...r},location.origin);
+});
+function addTicketTask(x){
+  const title=String(x.title||"").replace(/\s+/g," ").trim().slice(0,300), tk=String(x.ticket||"").trim().slice(0,60);
+  if(!title) return {result:"invalid"};
+  const ex=tk&&S.tasks.find(t=>!t.completed&&t.ticket===tk); if(ex) return {result:"exists",title:ex.title};
+  const tag=prodNames()[0]||"Soporte"; if(!isProdTag(tag)) S.settings.prodTags=[...(S.settings.prodTags||[]),pkey(tag)];
+  const u=x.ticketUrl?normUrl(String(x.ticketUrl)):"", pr=PRIO.includes(x.prio)?x.prio:"", now=Date.now();
+  S.tasks.push({id:uid(),title,tag,status:"todo",crit:pr==="P1"||pr==="P2"?"alta":pr==="P4"?"baja":"media",due:null,prio:pr,src:"ticket",...(tk?{ticket:tk}:{}),...(u?{ticketUrl:u}:{}),est:1,pomos:0,spent:0,completed:false,createdAt:now,order:now});
+  commit(); toast(`${tk||"Ticket"} agregado a ${tag}`);
+  return {result:"added",title};
+}
 
 render();
 })();
