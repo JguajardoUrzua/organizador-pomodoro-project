@@ -371,6 +371,52 @@ li.task.prod{box-shadow:inset 3px 0 0 var(--prod)}
 .projrow .k{font-size:.72rem;padding:1px 8px;border-radius:999px;background:var(--surface-2);color:var(--ink-2);white-space:nowrap}
 .projrow.on .k{background:color-mix(in srgb,var(--prod) 15%,var(--surface));color:var(--prod);font-weight:600}
 .projrow input{accent-color:var(--prod);width:18px;height:18px;margin:0}
+/* projects: strip of active projects over the task list + Proyectos view */
+.projstrip{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin:10px 0}
+.projstrip .lb{font-family:var(--f-display);font-weight:700;font-size:.72rem;letter-spacing:.12em;color:var(--ink-2);margin-right:2px}
+.pjc{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:999px;padding:3px 10px 3px 8px;font:inherit;font-size:.82rem;cursor:pointer;max-width:100%}
+.pjc:hover{border-color:var(--ink-2)}
+.pjc.on{border-color:var(--ink);box-shadow:inset 0 0 0 1px var(--ink);font-weight:600}
+.pjc .n{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:200px}
+.pjc em{font-style:normal;color:var(--ink-2);font-size:.76rem;white-space:nowrap}
+.pjd{width:9px;height:9px;border-radius:50%;flex:none;background:var(--ink-3)}
+.pjd.ok{background:#2f9e5b}.pjd.w{background:#e09a12}.pjd.b{background:#d6336c}
+.projstrip .pjall{border-style:dashed;color:var(--ink-2)}
+dialog.projdlg .pjgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:12px;overflow:auto;align-content:start;padding:2px}
+.pjcard{border:1px solid var(--line);border-radius:14px;padding:12px 14px;display:flex;flex-direction:column;gap:8px;background:var(--surface)}
+.pjcard.w{border-color:color-mix(in srgb,#e09a12 60%,var(--line));box-shadow:inset 4px 0 0 #e09a12}
+.pjcard.b{border-color:color-mix(in srgb,#d6336c 60%,var(--line));box-shadow:inset 4px 0 0 #d6336c}
+.pjcard .ph1{display:flex;align-items:center;gap:8px}
+.keys kbd{white-space:nowrap}
+.pjcard .pn{font-family:var(--f-display);font-weight:700;font-size:1rem;flex:1;min-width:0;overflow-wrap:anywhere;background:none;border:0;padding:0;color:inherit;text-align:left;cursor:pointer}
+.pjcard .pn:hover{text-decoration:underline}
+.pjcard .cnt{font-size:.8rem;color:var(--ink-2);white-space:nowrap}
+.pjact{font:inherit;font-size:.72rem;border:1px solid var(--line);background:var(--surface-2);color:var(--ink-2);border-radius:999px;padding:1px 9px;cursor:pointer;white-space:nowrap}
+.pjact.on{background:var(--ink);border-color:var(--ink);color:var(--surface);font-weight:600}
+.pjbar{height:6px;border-radius:9px;background:var(--surface-2);overflow:hidden}
+.pjbar i{display:block;height:100%;background:var(--accent);border-radius:9px}
+.pjmeta{display:flex;gap:4px 12px;flex-wrap:wrap;font-size:.8rem;color:var(--ink-2)}
+.pjmeta .ok{color:#2f9e5b;font-weight:600}.pjmeta .w{color:#c27c00;font-weight:600}.pjmeta .b{color:#d6336c;font-weight:600}
+.pjnext{background:var(--surface-2);border-radius:10px;padding:7px 10px;display:flex;flex-direction:column;gap:6px}
+.pjnext .tx{min-width:0;font-size:.88rem}
+.pjnext small{display:block;color:var(--ink-2);font-size:.72rem}
+.pjnext .t{background:none;border:0;padding:0;font:inherit;color:inherit;text-align:left;cursor:pointer}
+.pjnext .t:hover{text-decoration:underline}
+.pjnext .r{display:flex;gap:4px;justify-content:flex-end;flex-wrap:wrap}
+.pjlist{list-style:none;margin:0;padding:0;font-size:.86rem}
+.pjlist li{display:flex;gap:6px;align-items:baseline;padding:4px 0;border-top:1px dashed var(--line)}
+.pjlist li:first-child{border-top:0}
+.pjlist .t{flex:1;min-width:0;background:none;border:0;padding:0;font:inherit;color:inherit;text-align:left;cursor:pointer}
+.pjlist .t:hover{text-decoration:underline}
+.pjlist .s{font-size:.72rem;color:var(--ink-2);white-space:nowrap}
+.pjlist .late{color:#d6336c}
+.pjadd{display:flex;gap:6px}
+.pjadd input{flex:1;min-width:0}
+.pjfoot{display:flex;gap:8px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+.pjempty{grid-column:1/-1;color:var(--ink-2);padding:20px 4px}
+.pjhead{display:flex;align-items:center;gap:10px 14px;flex-wrap:wrap}
+.pjhead h2{font-family:var(--f-display);font-size:1.15rem;margin:0}
+.pjhead .pjsp{flex:1}
 
 .pomos{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
 .pomos.over{color:var(--danger)}
@@ -629,7 +675,7 @@ dialog#settings{width:min(760px,calc(100% - 32px));padding:0;overflow:hidden}
 .ptabs{display:flex;gap:2px;background:var(--surface-2);border-radius:10px;padding:3px}
 .ptabs button{border:0;background:none;font:inherit;font-family:var(--f-display);font-weight:700;font-size:.95rem;color:var(--ink-2);padding:4px 12px;border-radius:8px;cursor:pointer}
 .ptabs button[aria-selected="true"]{background:var(--surface);color:var(--ink);box-shadow:0 1px 3px rgb(0 0 0/.12)}
-.tasks-panel.jtab .fwrap,.tasks-panel.jtab .tasks-body,.tasks-panel.jtab #kanbanBtn{display:none}
+.tasks-panel.jtab .fwrap,.tasks-panel.jtab .tasks-body,.tasks-panel.jtab #kanbanBtn,.tasks-panel.jtab #projBtn{display:none}
 .grid.collapsed .journal{display:none}
 .journal{display:flex;flex-direction:column;gap:8px;min-width:0}
 .journal[hidden]{display:none}

@@ -1,6 +1,6 @@
 (() => {
 const LS = "pomodoro-panel-v1", LT = "pomodoro-timer-v1";
-const DEF = {settings:{focus:25,short:5,long:15,longEvery:4,goal:8,autoBreaks:false,autoFocus:false,sound:true,ambKind:"rain",ambVol:.5,ambSync:false,jtags:[],prodTags:[]},
+const DEF = {settings:{focus:25,short:5,long:15,longEvery:4,goal:8,autoBreaks:false,autoFocus:false,sound:true,ambKind:"rain",ambVol:.5,ambSync:false,jtags:[],prodTags:[],projAct:[]},
   tasks:[],notes:[],log:[],tlog:{},focus:[],activeTaskId:null,updatedAt:0};
 const $ = s => document.querySelector(s);
 const uid = () => Math.random().toString(36).slice(2,10)+Date.now().toString(36).slice(-4);
@@ -184,6 +184,25 @@ function renderKanban(){
 }
 function kbMove(id,st){ const t=taskById(id); if(!t||(t.status||"todo")===st) return; setStatus(t,st); commit(); renderKanban(); toast(`${t.title}: ${STL[st]}`); }
 $("#kanbanBtn").addEventListener("click",e=>{ e.stopPropagation(); $("#kanban").showModal(); renderKanban(); });
+$("#projBtn").addEventListener("click",e=>{ e.stopPropagation(); pjOpenDlg(); });
+$("#pjClose").addEventListener("click",()=>$("#projDlg").close());
+$("#projDlg").addEventListener("click",e=>{ if(e.target===e.currentTarget){ $("#projDlg").close(); return; }
+  const v=e.target.closest("[data-pjv]"); if(v){ pjView=v.dataset.pjv; lsSet("pp-pjview",pjView); pjRender(); return; }
+  const b=e.target.closest("[data-pa]"); if(!b||b.tagName==="FORM") return; const c=b.closest(".pjcard"); if(!c) return; const k=c.dataset.pk, name=c.dataset.name, a=b.dataset.pa, t=b.dataset.id&&taskById(b.dataset.id);
+  if(a==="act"){ const st=new Set(S.settings.projAct||[]); if(st.has(k)) st.delete(k); else st.add(k); S.settings.projAct=[...st]; commit(); }
+  else if(a==="toggle"){ pjOpen=pjOpen===k?null:k; pjAdd=pjOpen; pjRender(); if(pjOpen){ const i=$(`#pjGrid .pjcard[data-pk="${CSS.escape(k)}"] .pjadd input`); if(i) i.focus(); } }
+  else if(a==="filter"){ $("#projDlg").close(); tagF=name; lsSet("pp-tag",tagF); render(); }
+  else if(a==="go"&&t){ $("#projDlg").close(); goToTask(t.id); }
+  else if(a==="star"&&t){ t.star=true; commit(); toast("Marcada para hoy: "+t.title); }
+  else if(a==="foco"&&t&&typeof focoAdd==="function"){ focoAdd(t.id); pjRender(); }
+  else if(a==="play"&&t){ $("#projDlg").close(); startTrack(t.id); toast("Trabajando en «"+t.title+"»"); } });
+$("#projDlg").addEventListener("submit",e=>{ const f=e.target.closest(".pjadd"); if(!f) return; e.preventDefault(); const c=f.closest(".pjcard"), i=f.querySelector("input"), title=i.value.replace(/\s+/g," ").trim(); if(!title){ i.focus(); return; }
+  const now=Date.now(); S.tasks.push({id:uid(),title,tag:c.dataset.name,status:"todo",crit:"media",due:null,est:1,pomos:0,spent:0,completed:false,createdAt:now,order:now});
+  i.value=""; commit(); toast("Tarea agregada a "+c.dataset.name); const n=$(`#pjGrid .pjcard[data-pk="${CSS.escape(c.dataset.pk)}"] .pjadd input`); if(n) n.focus(); });
+$("#projDlg").addEventListener("close",()=>{ pjOpen=null; pjAdd=null; });
+$("#projStrip").addEventListener("click",e=>{ const b=e.target.closest("[data-pj]"); if(!b) return; const n=b.dataset.pj;
+  if(n==="__open"){ pjOpenDlg(); return; }
+  tagF=tagF&&pkey(tagF)===pkey(n)?null:n; lsSet("pp-tag",tagF); render(); });
 $("#kbClose").addEventListener("click",()=>$("#kanban").close());
 document.querySelectorAll("[data-kbv]").forEach(b=>b.addEventListener("click",()=>{ kbView=b.dataset.kbv; lsSet("pp-kbview",kbView); renderKanban(); }));
 $("#kanban").addEventListener("click",e=>{ if(e.target===e.currentTarget) e.currentTarget.close(); });
@@ -306,8 +325,50 @@ function projSetRender(){ const m=new Map(); S.tasks.forEach(t=>{ if(!t.tag) ret
   $("#projList").innerHTML=L.length?L.map(([k,p])=>{ const on=isProdTag(p.name); return `<label class="projrow ${on?"on":""}"><span class="n">${esc(p.name)}</span><span class="meta" style="margin:0">${p.n} abierta${p.n!==1?"s":""}</span><span class="k">${on?"Producción":"Proyecto"}</span><input type="checkbox" data-pk="${esc(k)}" ${on?"checked":""} aria-label="${esc(p.name)} es de Producción"></label>`; }).join("")
     :`<div class="meta">Aún no tienes proyectos. Asigna un proyecto a tus tareas y aparecerá aquí.</div>`; }
 var applyBg=()=>{}, dragTodo=null;
+// projects at a glance: every project (task tag) that is not Producción, with what is left, its next step and how long since it last moved
+var pjOpen=null, pjAdd=null, pjView=lsGet("pp-pjview")==="act"?"act":"all";
+function pjDays(k){ if(!k) return null; const a=new Date(k+"T00:00"), b=new Date(dayKey(Date.now())+"T00:00"); return Math.round((b-a)/864e5); }
+function pjDurS(ms){ const m=Math.round(ms/6e4), h=Math.floor(m/60); return h?h+" h"+(m%60?" "+String(m%60).padStart(2,"0"):""):m+" min"; }
+function pjLvl(d){ return d==null?"b":d>=7?"b":d>=3?"w":"ok"; }
+function pjAgeTx(d){ return d==null?"Sin avance registrado":d===0?"Avanzó hoy":d===1?"Avanzó ayer":"Sin avance hace "+d+" días"; }
+function pjIsAct(k){ return (S.settings.projAct||[]).includes(k); }
+var PJ_ST={inbox:"Sin asignar",backlog:"Backlog",todo:"Por hacer",doing:"En curso",paused:"En pausa",review:"En revisión"};
+function pjRank(t){ const today=dayKey(Date.now()); return (t.status==="doing"?0:t.star?1:(t.due&&t.due<=today)?2:t.status==="paused"?3:t.status==="backlog"?6:t.status==="inbox"?5:4); }
+function pjData(){ const m=new Map(), today=dayKey(Date.now());
+  const mon=(()=>{ const d=new Date(today+"T00:00"); d.setDate(d.getDate()-((d.getDay()+6)%7)); return dayKey(d); })();
+  S.tasks.forEach(t=>{ if(!t.tag||isProdTag(t.tag)) return; const k=pkey(t.tag);
+    if(!m.has(k)) m.set(k,{k,name:t.tag,open:[],done:0,last:null,week:0});
+    const p=m.get(k); if(t.status==="cancelled") return;
+    if(t.completed){ p.done++; if(t.completedAt){ const d=dayKey(t.completedAt); if(!p.last||d>p.last) p.last=d; } } else p.open.push(t); });
+  const byId=new Map(S.tasks.map(t=>[t.id,t]));
+  Object.entries(S.tlog||{}).forEach(([d,L])=>Object.entries(L).forEach(([id,ms])=>{ const t=byId.get(id); if(!t||!t.tag||ms<60000) return; const p=m.get(pkey(t.tag)); if(!p) return;
+    if(!p.last||d>p.last) p.last=d; if(d>=mon) p.week+=ms; }));
+  const L=[...m.values()].filter(p=>p.open.length||pjIsAct(p.k));
+  L.forEach(p=>{ p.days=pjDays(p.last); p.lvl=pjLvl(p.days); p.open.sort((a,b)=>(pjRank(a)-pjRank(b))||((a.order??a.createdAt)-(b.order??b.createdAt))); });
+  return L.sort((a,b)=>((b.days??1e9)-(a.days??1e9))||(b.open.length-a.open.length)||a.name.localeCompare(b.name,"es")); }
+function projStripRender(){ const el=$("#projStrip"); if(!el) return; const L=pjData().filter(p=>pjIsAct(p.k));
+  if(!L.length){ if(!el.hidden){ el.hidden=true; el.innerHTML=""; el.dataset.h=""; } return; }
+  const h=`<span class="lb">PROYECTOS</span>`+L.map(p=>`<button class="pjc ${tagF&&pkey(tagF)===p.k?"on":""}" type="button" data-pj="${esc(p.name)}" title="${esc(p.name)} · ${p.open.length} pendiente${p.open.length!==1?"s":""} · ${pjAgeTx(p.days)}. Clic para ver solo sus tareas."><span class="pjd ${p.lvl}"></span><span class="n">${esc(p.name)}</span><em>${p.open.length} · ${p.days==null?"–":p.days===0?"hoy":p.days+" d"}</em></button>`).join("")
+    +`<button class="pjc pjall" type="button" data-pj="__open" title="Ver todos tus proyectos (tecla P)">Ver todos</button>`;
+  el.hidden=false; if(el.dataset.h!==h){ el.dataset.h=h; el.innerHTML=h; } }
+function pjRender(){ const g=$("#pjGrid"); if(!g||!$("#projDlg").open) return; if(pjAdd&&g.contains(document.activeElement)&&document.activeElement.matches(".pjadd input")) return;
+  const all=pjData(), act=all.filter(p=>pjIsAct(p.k)), L=pjView==="act"?act:all, today=dayKey(Date.now());
+  document.querySelectorAll("[data-pjv]").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.pjv===pjView)));
+  $("#pjSum").textContent=all.length?`${all.length} proyecto${all.length!==1?"s":""} · ${act.length} activo${act.length!==1?"s":""}`+(all.filter(p=>p.lvl==="b").length?` · ${all.filter(p=>p.lvl==="b").length} sin avance hace 7+ días`:""):"";
+  const hasFoco=typeof focoAdd==="function";
+  g.innerHTML=L.length?L.map(p=>{ const tot=p.open.length+p.done, pc=tot?Math.round(p.done/tot*100):0, nx=p.open[0], op=pjOpen===p.k, more=op?p.open.slice(1):[];
+    return `<div class="pjcard ${p.lvl==="ok"?"":p.lvl}" data-pk="${esc(p.k)}" data-name="${esc(p.name)}">
+      <div class="ph1"><button class="pn" type="button" data-pa="filter" title="Ver solo sus tareas">${esc(p.name)}</button><span class="cnt">${p.open.length} pendiente${p.open.length!==1?"s":""}</span><button class="pjact ${pjIsAct(p.k)?"on":""}" type="button" data-pa="act" aria-pressed="${pjIsAct(p.k)}" title="${pjIsAct(p.k)?"Quitar de la franja sobre tus tareas":"Mostrarlo en la franja sobre tus tareas"}">${pjIsAct(p.k)?"Activo":"+ Activo"}</button></div>
+      <div class="pjbar" title="${p.done} de ${tot} cerradas"><i style="width:${pc}%"></i></div>
+      <div class="pjmeta"><span>${p.done} de ${tot} cerradas</span><span class="${p.lvl}">${pjAgeTx(p.days)}</span><span>${p.week>=60000?pjDurS(p.week)+" esta semana":"0 h esta semana"}</span></div>
+      ${nx?`<div class="pjnext" data-id="${nx.id}"><div class="tx"><small>Próximo paso</small><button class="t" type="button" data-pa="go" data-id="${nx.id}" title="Ir a la tarea">${nx.star?"★ ":""}${esc(nx.title)}</button></div><div class="r">${hasFoco?`<button class="btn sm" type="button" data-pa="foco" data-id="${nx.id}" title="Agregar a Foco">→ Foco</button>`:""}${nx.star?"":`<button class="btn sm" type="button" data-pa="star" data-id="${nx.id}" title="Marcar para hoy">★ Hoy</button>`}<button class="btn sm primary" type="button" data-pa="play" data-id="${nx.id}" title="Empezar a trabajar en ella">▶</button></div></div>`:`<div class="pjnext"><div class="tx"><small>Próximo paso</small>Sin tareas pendientes. Agrega la siguiente.</div></div>`}
+      ${op?`${more.length?`<ul class="pjlist">${more.map(t=>`<li><button class="t" type="button" data-pa="go" data-id="${t.id}">${t.star?"★ ":""}${esc(t.title)}</button>${t.due?`<span class="s ${t.due<today?"late":""}">${t.due<today?"atrasada":t.due===today?"hoy":t.due.slice(8)+"/"+t.due.slice(5,7)}</span>`:""}<span class="s">${PJ_ST[t.status]||""}</span></li>`).join("")}</ul>`:""}
+        <form class="pjadd" data-pa="addf"><input type="text" placeholder="Nueva tarea en ${esc(p.name)}" aria-label="Nueva tarea en ${esc(p.name)}" autocomplete="off"><button class="btn sm" type="submit">Agregar</button></form>`:""}
+      <div class="pjfoot"><button class="nlink" type="button" data-pa="toggle">${op?"Ver menos":p.open.length>1?`Ver las ${p.open.length} pendientes`:"+ Agregar tarea"}</button></div></div>`; }).join("")
+    :`<div class="pjempty">${pjView==="act"?"Aún no marcas proyectos como activos. En «Todos», toca «+ Activo» en los que llevas en paralelo.":"Aún no tienes proyectos con tareas pendientes. Asigna un proyecto a tus tareas y aparecerá aquí."}</div>`; }
+function pjOpenDlg(){ pjAdd=null; $("#projDlg").showModal(); pjRender(); }
 var jReady=false; // set once the bitácora code below has run
-function render(){ applyLook(); incCheck(); prodRender(); incRender();
+function render(){ applyLook(); incCheck(); prodRender(); incRender(); projStripRender(); pjRender();
   const st=S.settings;
   renderKanban(); if(jReady){ jClosedRender(); jMarkTasks(); calRender(); }
   // tags
@@ -664,6 +725,7 @@ document.addEventListener("keydown",e=>{
   else if(e.key==="s"||e.key==="S") finish(true);
   else if(e.key==="i"||e.key==="I") interruption();
   else if(e.key==="c"||e.key==="C"){ e.preventDefault(); calOpen(); }
+  else if(e.key==="p"||e.key==="P"){ e.preventDefault(); pjOpenDlg(); }
   else if(e.key==="f"||e.key==="F"){ e.preventDefault(); focoView(!document.body.classList.contains("focoview")); }
   else if(e.key==="t"||e.key==="T"){ e.preventDefault(); tqOpen(); }
   else if(e.key==="Escape"&&document.body.classList.contains("focoview")) focoView(false);
