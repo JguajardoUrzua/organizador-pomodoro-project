@@ -18,20 +18,24 @@ function normalize(x){
 }
 
 // ---------- persistence (browser + private db doc) ----------
+// Dentro de Brain (en /apps/focus/) los datos se guardan también en su base de datos; ver «Brain» más abajo.
+const BRAIN_API = /\/apps\/focus\//.test(location.pathname) ? "/api/focus" : null;
 let docRef=null, saving=false, dirty=false, saveTimer=null;
+// Estado de la conexión con Brain para Ajustes → Respaldo.
+const BR={st:BRAIN_API?"wait":"off",last:0,err:""};
 function commit(){
   S.updatedAt = Date.now();
   const cutoff = Date.now()-60*864e5; S.log = S.log.filter(e=>e.t>cutoff);
   { const old=dayKey(Date.now()-120*864e5); Object.keys(S.tlog).forEach(k=>{ if(k<old) delete S.tlog[k]; }); }
   lsSet(LS,S); render(); schedule();
 }
-function schedule(){ if(!docRef) return; dirty=true; clearTimeout(saveTimer); saveTimer=setTimeout(flush,900); }
+function schedule(){ if(!docRef) return; dirty=true; brainUi(); clearTimeout(saveTimer); saveTimer=setTimeout(flush,900); }
 async function flush(){
   if(!docRef||saving||!dirty) return;
-  saving=true; dirty=false; setSync("Guardando…");
-  try{ await docRef.set(JSON.parse(JSON.stringify(S))); setSync(BRAIN_API?"Guardado en Brain":"Guardado en tu cuenta"); }
-  catch(e){ setSync(e&&e.code==="quota_exceeded"?"Sin espacio para guardar":"Guardado solo en este navegador"); if(e&&e.code==="unavailable") dirty=true; }
-  saving=false; if(dirty) saveTimer=setTimeout(flush,1500);
+  saving=true; dirty=false; setSync("Guardando…"); brainUi();
+  try{ await docRef.set(JSON.parse(JSON.stringify(S))); setSync(BRAIN_API?"Guardado en Brain":"Guardado en tu cuenta"); brainOk(); }
+  catch(e){ setSync(e&&e.code==="quota_exceeded"?"Sin espacio para guardar":"Guardado solo en este navegador"); if(e&&e.code==="unavailable") dirty=true; brainFail(e); }
+  saving=false; brainUi(); if(dirty) saveTimer=setTimeout(flush,BR.st==="err"?8000:1500);
 }
 function setSync(t){ $("#sync").textContent=t; }
 
@@ -1159,11 +1163,13 @@ function jStore(k){ if(!jEdited||k!==jCur) return; jEdited=false;
   if(html.length>200000) toast("Este día está muy largo; considera seguir en un día nuevo.");
   lsSet(LJ,J); jDirty.add(k); jFlushSoon(); }
 function jSaveNow(){ clearTimeout(jLsT); jStore(jCur); }
-function jFlushSoon(){ if(!jCol){ jSet("Guardado en este navegador"); return; } jSet("Guardando…"); clearTimeout(jFlushT); jFlushT=setTimeout(jFlush,1200); }
-async function jFlush(){ if(!jCol) return; const ks=[...jDirty]; jDirty.clear(); let ok=true;
+function jFlushSoon(){ if(!jCol){ jSet("Guardado en este navegador"); return; } jSet("Guardando…"); brainUi(); clearTimeout(jFlushT); jFlushT=setTimeout(jFlush,1200); }
+let jFlushing=false;
+async function jFlush(){ if(!jCol) return; const ks=[...jDirty]; jDirty.clear(); let ok=true, err=null; jFlushing=true; brainUi();
   for(const k of ks){ const d=J.days[k]; if(!d) continue;
     try{ await jCol.doc(k).set(d.deleted?{html:"",updatedAt:d.updatedAt,deleted:true}:{html:d.html,updatedAt:d.updatedAt}); }
-    catch(e){ ok=false; jDirty.add(k); } }
+    catch(e){ ok=false; err=e; jDirty.add(k); } }
+  jFlushing=false; if(ok) brainOk(); else brainFail(err); brainUi();
   jSet(ok?(BRAIN_API?"Guardado en Brain":"Guardado en tu cuenta"):"Guardado solo en este navegador"); if(!ok){ clearTimeout(jFlushT); jFlushT=setTimeout(jFlush,8000); } }
 function jImport(jx){ const now=Date.now();
   for(const k in J.days) if(!jx.days[k]){ J.days[k]={html:"",updatedAt:now,deleted:true}; jDirty.add(k); }
@@ -1614,7 +1620,9 @@ $("#importFile").addEventListener("change",async e=>{
 // ---------- backups: automatic (folder in Chrome/Edge, or a daily download) or a reminder ----------
 const CAN_DIR=!!window.showDirectoryPicker&&window.isSecureContext&&window.top===window;
 const bakGet=()=>{ const x=lsGet("pp-bak")||{}; if(x.auto===undefined&&x.dirName){ x.auto=true; x.mode="dir"; }
-  return {auto:false,mode:CAN_DIR?"dir":"dl",every:7,last:0,snooze:0,dirName:"",dirAt:0,dlDay:"",...x}; };
+  return {auto:false,mode:CAN_DIR?"dir":"dl",every:7,freq:BRAIN_API?7:1,last:0,snooze:0,dirName:"",dirAt:0,dlDay:"",...x}; };
+// Respaldo automático cada semana: toca cuando pasaron 7 días desde el último (con medio día de margen).
+const bakWeekDue=b=>b.freq===7&&Date.now()-b.last<6.5*864e5;
 const bakSet=o=>lsSet("pp-bak",{...bakGet(),...o});
 const bakMode=b=>b.mode==="dir"&&CAN_DIR?"dir":"dl";
 const idbKV=(mode,fn)=>new Promise((res,rej)=>{ let r; try{ r=indexedDB.open("pp-backup",1); }catch(e){ rej(e); return; }
@@ -1644,10 +1652,10 @@ async function bakCheck(){
   if(b.auto&&bakMode(b)==="dir"){
     if(!bakDirH){ msg="El respaldo automático está activado, pero falta elegir la carpeta donde guardarlo."; go="Elegir carpeta"; bakAct="pick"; }
     else { let perm="denied"; try{ perm=await bakDirH.queryPermission({mode:"readwrite"}); }catch{}
-      if(perm==="granted"){ if(now-b.dirAt>30*60000){ try{ await bakDirWrite(); }catch{ msg=`No se pudo escribir el respaldo en «${b.dirName}».`; go="Elegir otra carpeta"; bakAct="pick"; } } }
+      if(perm==="granted"){ if(now-b.dirAt>30*60000&&!bakWeekDue(b)){ try{ await bakDirWrite(); }catch{ msg=`No se pudo escribir el respaldo en «${b.dirName}».`; go="Elegir otra carpeta"; bakAct="pick"; } } }
       else { msg=`El respaldo automático en «${b.dirName}» necesita tu permiso para seguir.`; go="Continuar respaldo"; bakAct="perm"; } }
   } else if(b.auto){
-    if(has&&b.dlDay!==today){ bakSet({dlDay:today}); if(await saveFile(`tareas-respaldo-${today}.json`,backupJSON(),"application/json","Respaldo diario")) bakSet({last:Date.now()}); }
+    if(has&&b.dlDay!==today&&!bakWeekDue(b)){ bakSet({dlDay:today}); if(await saveFile(`tareas-respaldo-${today}.json`,backupJSON(),"application/json",b.freq===7?"Respaldo semanal":"Respaldo diario")) bakSet({last:Date.now()}); }
   } else if(has&&now-b.last>=b.every*864e5&&now>b.snooze)
     msg=b.last?`Tu último respaldo fue ${ago(now-b.last)}. Descarga uno nuevo para no perder tus tareas y tu bitácora.`:"Aún no tienes un respaldo de tus tareas y tu bitácora. Descarga uno para no perderlas.";
   $("#bakMsg").textContent=msg; $("#bakGo").textContent=go; $("#bakLater").hidden=!!bakAct; $("#bakBar").hidden=!msg;
@@ -1656,11 +1664,14 @@ async function bakCheck(){
 function bakInfo(){
   const b=bakGet(), m=bakMode(b), el=$("#bakInfo"); if(!el) return;
   const last=b.last?` Último respaldo: ${new Date(b.last).toLocaleString("es",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"})}.`:" Aún no hay respaldos en este navegador.";
+  const wk=b.freq===7;
   el.textContent=(!b.auto?`Te avisaremos si pasa ${b.every===1?"un día":"una semana"} sin respaldar.`
-    :m==="dir"?(bakDirH?`Se guarda un archivo por día en la carpeta «${b.dirName}», mientras el panel esté abierto. Se conservan los últimos 30 días.`:"Elige la carpeta. Puede ser una de OneDrive o Google Drive para que el respaldo quede en la nube.")
+    :m==="dir"?(bakDirH?`Se guarda un archivo ${wk?"por semana":"por día"} en la carpeta «${b.dirName}», mientras el panel esté abierto. Se conservan los últimos 30 días.`:"Elige la carpeta. Puede ser una de OneDrive o Google Drive para que el respaldo quede en la nube.")
+    :wk?"Una vez por semana, al abrir el panel, se descarga un respaldo en la carpeta de descargas del navegador."
     :"La primera vez que abras el panel cada día se descarga un respaldo en la carpeta de descargas del navegador.")+last;
-  $("#cBakAuto").value=b.auto?"1":"0"; $("#cBakMode").value=m; $("#cBakEvery").value=String(b.every===1?1:7);
-  $("#bakModeRow").hidden=!b.auto; $("#bakEveryRow").hidden=b.auto;
+  $("#cBakAuto").value=b.auto?"1":"0"; $("#cBakMode").value=m; $("#cBakEvery").value=String(b.every===1?1:7); $("#cBakFreq").value=String(wk?7:1);
+  $("#bakModeRow").hidden=!b.auto; $("#bakFreqRow").hidden=!b.auto; $("#bakEveryRow").hidden=b.auto;
+  const dl=$("#cBakMode option[value='dl']"); if(dl) dl.textContent=wk?"Descarga semanal":"Descarga diaria";
   const o=$("#cBakMode option[value='dir']"); o.disabled=!CAN_DIR; o.textContent=CAN_DIR?"En una carpeta que elijo":"En una carpeta (solo Chrome y Edge)";
   $("#bakDir").hidden=!(b.auto&&m==="dir"); $("#bakDir").textContent=bakDirH?"Cambiar carpeta…":"Elegir carpeta…";
 }
@@ -1673,6 +1684,7 @@ $("#bakLater").addEventListener("click",()=>{ bakSet({snooze:Date.now()+864e5});
 $("#bakNow").addEventListener("click",doBackup);
 $("#bakDir").addEventListener("click",bakPick);
 $("#cBakEvery").addEventListener("change",e=>{ bakSet({every:+e.target.value,snooze:0}); bakCheck(); });
+$("#cBakFreq").addEventListener("change",e=>{ bakSet({freq:+e.target.value}); bakCheck(); });
 const bakModeChange=()=>{ const auto=$("#cBakAuto").value==="1", mode=$("#cBakMode").value; bakSet({auto,mode});
   if(auto&&bakMode(bakGet())==="dir"&&!bakDirH){ bakInfo(); bakPick(); } else bakCheck(); };
 $("#cBakAuto").addEventListener("change",bakModeChange); $("#cBakMode").addEventListener("change",bakModeChange);
@@ -2220,15 +2232,15 @@ setInterval(alCheck,15000); setTimeout(alCheck,1500);
 // cambios más nuevos que Brain, se suben; si Brain tiene algo más nuevo, se trae.
 // Para pasar datos de otro Focus, basta con Importar respaldo aquí dentro.
 // Fuera de Brain (GitHub Pages) todo sigue solo en el navegador.
-const BRAIN_API = /\/apps\/focus\//.test(location.pathname) ? "/api/focus" : null;
 async function brainPut(path,body){
-  const r=await fetch(BRAIN_API+path,{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
+  let r; try{ r=await fetch(BRAIN_API+path,{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)}); }
+  catch{ throw Object.assign(new Error("Brain no responde"),{code:"unavailable"}); }
   if(!r.ok) throw Object.assign(new Error("Brain respondió "+r.status),{code:r.status===413?"quota_exceeded":"unavailable"});
 }
 async function brainStart(){
   let srv;
   try{ const r=await fetch(BRAIN_API,{cache:"no-store"}); if(!r.ok) throw new Error(String(r.status)); srv=await r.json(); }
-  catch{ setSync("Guardado solo en este navegador"); jSet("Guardado solo en este navegador"); return; }
+  catch(e){ setSync("Guardado solo en este navegador"); jSet("Guardado solo en este navegador"); brainFail(e); brainUi(); return false; }
   docRef={set:d=>brainPut("/panel",d)};
   jCol={doc:k=>({set:d=>brainPut("/journal/"+k,d)})};
   const sp=srv&&srv.panel;
@@ -2240,8 +2252,54 @@ async function brainStart(){
   for(const k in J.days){ const s=sj.days[k]; if(!s||J.days[k].updatedAt>s.updatedAt) jDirty.add(k); }
   if(changed){ lsSet(LJ,J); if(!jEdited) jOpen(jCur); }
   if(jDirty.size) jFlush(); else jSet("");
+  if(!dirty&&!jDirty.size) brainOk();
+  brainUi(); return true;
 }
-if(BRAIN_API) brainStart();
+function brainOk(){ BR.st="ok"; BR.err=""; BR.last=Date.now(); }
+function brainFail(e){ BR.st="err"; BR.err=e&&e.message?e.message:"Sin respuesta"; }
+// cambios que aún no llegan a Brain: el panel, cada día de la bitácora y lo que se está escribiendo
+const brainPending=()=>(dirty||saving?1:0)+jDirty.size+(jEdited?1:0);
+function brainUi(){
+  const box=$("#brainBox"); if(!box) return;
+  box.hidden=!BRAIN_API; $("#bakFileNote").hidden=!BRAIN_API; if(!BRAIN_API) return;
+  const n=brainPending(), busy=saving||jFlushing, el=$("#brainSt"), at=BR.last?new Date(BR.last).toLocaleTimeString("es",{hour:"2-digit",minute:"2-digit"}):"";
+  let st, t;
+  if(BR.st==="err"){ st="err"; t=docRef?`Sin conexión con Brain · ${n||"hay"} ${n===1?"cambio guardado":"cambios guardados"} solo en este navegador`:"Sin conexión con Brain · los cambios quedan en este navegador"; }
+  else if(BR.st==="wait"&&!docRef){ st="wait"; t="Conectando…"; }
+  else if(busy){ st="wait"; t="Guardando…"; }
+  else if(n){ st="wait"; t=`${n} ${n===1?"cambio esperando":"cambios esperando"}`; }
+  else { st="ok"; t=at?`Conectado · último guardado ${at}`:"Conectado"; }
+  el.dataset.st=st; $("#brainStT").textContent=t;
+  $("#brainSave").disabled=busy; $("#brainPull").disabled=busy||!docRef;
+}
+async function brainSaveNow(){
+  if(!docRef){ if(!(await brainStart())){ toast("Brain no responde. Tus cambios siguen en este navegador."); return; } }
+  jSaveNow(); clearTimeout(saveTimer); clearTimeout(jFlushT);
+  if(S.updatedAt) dirty=true;
+  while(saving) await new Promise(r=>setTimeout(r,100));
+  await flush(); if(jDirty.size) await jFlush();
+  brainUi(); toast(BR.st==="ok"?"Guardado en Brain":"No se pudo guardar en Brain. Se volverá a intentar.");
+}
+async function brainPull(){
+  confirmDel("¿Traer los datos guardados en Brain? Reemplazan lo que hay en este navegador; lo que no se haya guardado en Brain se pierde.",async()=>{
+    let srv; try{ const r=await fetch(BRAIN_API,{cache:"no-store"}); if(!r.ok) throw new Error("Brain respondió "+r.status); srv=await r.json(); }
+    catch(e){ brainFail(e); brainUi(); toast("Brain no responde. No se cambió nada."); return; }
+    clearTimeout(saveTimer); dirty=false; clearTimeout(jFlushT); jDirty.clear(); jEdited=false;
+    if(srv.panel){ if(T.track) stopTrack(); S=normalize(srv.panel); lsSet(LS,S); }
+    J=normJ({days:srv.days||{}}); lsSet(LJ,J); jOpen(jCur);
+    render(); brainOk(); brainUi(); setSync("Guardado en Brain"); toast("Datos traídos desde Brain");
+  },{title:"Traer desde Brain",yes:"Traer"});
+}
+if(BRAIN_API){
+  $("#brainSave").addEventListener("click",brainSaveNow);
+  $("#brainPull").addEventListener("click",brainPull);
+  $("#openSettings").addEventListener("click",brainUi);
+  setInterval(brainUi,20000);
+  // Si queda algo sin llegar a Brain, el navegador pregunta antes de cerrar.
+  addEventListener("beforeunload",e=>{ if(brainPending()&&docRef){ e.preventDefault(); e.returnValue=""; } });
+  brainStart();
+}
+brainUi();
 
 render();
 })();
