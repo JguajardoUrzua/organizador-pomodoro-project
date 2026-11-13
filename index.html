@@ -14,7 +14,7 @@
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500&family=Space+Grotesk:wght@500;700&display=swap">
-<link rel="stylesheet" href="css/styles.css?v=v39">
+<link rel="stylesheet" href="css/styles.css?v=v40">
 </head>
 <body>
 <canvas id="scene" aria-hidden="true"></canvas>
@@ -151,6 +151,7 @@
           </div>
         </div>
         <div class="jresults" id="jResults" hidden></div>
+        <div class="jcarry" id="jCarry" hidden></div>
         <div class="jempty" id="jEmpty" hidden><div id="jEmptyMsg">Aún no empiezas la bitácora de este día.</div><div class="r"><button class="btn primary" type="button" id="jStartHeads">Empezar con los encabezados del día anterior</button><button class="btn" type="button" id="jStartBlank">Hoja en blanco</button></div></div>
         <div class="jtools" role="toolbar" aria-label="Formato" id="jTools">
           <button type="button" data-cmd="bold" title="Negrita (Ctrl+B)" aria-label="Negrita"><b>N</b></button>
@@ -174,7 +175,7 @@
           <button type="button" id="jCodeBtn" title="Bloque de código (también: escribe ``` y Enter, o Ctrl+Shift+K)"><svg class="ic" viewBox="0 0 16 16" aria-hidden="true"><path d="M5.6 4.2L1.8 8l3.8 3.8M10.4 4.2L14.2 8l-3.8 3.8"/></svg> Código</button>
           <button type="button" id="jTblBtn" title="Insertar una tabla"><svg class="ic" viewBox="0 0 16 16" aria-hidden="true"><path d="M3.4 2.8h9.2a1.4 1.4 0 0 1 1.4 1.4v7.6a1.4 1.4 0 0 1-1.4 1.4H3.4A1.4 1.4 0 0 1 2 11.8V4.2a1.4 1.4 0 0 1 1.4-1.4zM2 6.3h12M2 9.8h12M6.2 2.8v10.4M10.2 2.8v10.4"/></svg> Tabla</button>
           <button type="button" id="jLinkBtn" title="Adjuntar un link (OneDrive, SharePoint, web…)"><svg class="ic" viewBox="0 0 16 16" aria-hidden="true"><path d="M6.7 9.3a2.6 2.6 0 0 0 3.7 0l2.3-2.3a2.6 2.6 0 0 0-3.7-3.7l-.9.9M9.3 6.7a2.6 2.6 0 0 0-3.7 0L3.3 9a2.6 2.6 0 0 0 3.7 3.7l.9-.9"/></svg> Link</button>
-          <button type="button" id="jTagBtn" title="Agregar un tag (también puedes escribir / en el texto)"># Tag</button>
+          <button type="button" id="jTagBtn" title="Agregar un tag (también puedes escribir / en el texto)"># Tag</button><button type="button" id="jAtBtn" title="Traer una tarea a este día (también puedes escribir @ en el texto)">@ Tarea</button>
           <button type="button" id="jToTask" title="Convertir la línea actual o el texto seleccionado en una tarea (Ctrl+Shift+E)"><svg class="ic" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8h9.6M9 4.4L12.6 8 9 11.6"/></svg> Tarea</button>
           <span class="jstate" id="jState"></span>
         </div>
@@ -387,6 +388,6 @@
 </dialog>
 <div class="albar" id="alBar" role="alert" hidden></div>
 <div class="toast" id="toast" hidden></div>
-<script src="js/app.js?v=v39"></script>
+<script src="js/app.js?v=v40"></script>
 </body>
 </html>

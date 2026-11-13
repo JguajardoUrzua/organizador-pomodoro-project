@@ -242,6 +242,34 @@ input[type=date]{background:var(--surface);border:1px solid var(--line);border-r
 .rec{color:var(--ink-2);white-space:nowrap}
 .jtask{display:inline-block;font-family:"IBM Plex Sans",system-ui,sans-serif;font-size:.74em;font-weight:600;line-height:1.35;padding:0 7px;margin:0 2px;border-radius:999px;vertical-align:1px;cursor:pointer;white-space:nowrap;border:1px solid var(--line);background:var(--surface-2);color:var(--ink-2);user-select:all}
 .jtask.done{text-decoration:line-through;opacity:.75}
+/* @ task references in the bitácora: a live chip with its box, project and state */
+.jref{display:inline-flex;align-items:center;gap:6px;font-family:"IBM Plex Sans",system-ui,sans-serif;font-size:.86em;line-height:1.4;padding:1px 9px 1px 5px;margin:1px 2px;border-radius:8px;vertical-align:baseline;cursor:pointer;border:1px solid color-mix(in srgb,var(--accent) 35%,var(--line));background:color-mix(in srgb,var(--accent) 7%,var(--surface));color:var(--ink);user-select:all;max-width:100%}
+.jref .bx{width:14px;height:14px;border:1.6px solid var(--ink-2);border-radius:4px;flex:none;display:grid;place-items:center;background:var(--surface)}
+.jref .bx:hover{border-color:var(--accent)}
+.jref .tt{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.jref .pj,.jref .st{font-size:.82em;color:var(--ink-2);white-space:nowrap}
+.jref .pj{padding:0 6px;border-radius:999px;background:var(--surface-2)}
+.jref.done .bx{background:var(--ink-2);border-color:var(--ink-2)}
+.jref.done .bx::after{content:"";width:7px;height:4px;border:2px solid var(--surface);border-top:0;border-right:0;transform:translateY(-1px) rotate(-45deg)}
+.jref.done .tt{text-decoration:line-through;color:var(--ink-2)}
+.jref.moved{opacity:.55;border-style:dashed}
+.jref.moved .tt{text-decoration:line-through}
+.jref.gone{opacity:.5;border-style:dashed}
+.jref .st.late{color:var(--danger);font-weight:600}
+.jrefmenu{position:fixed;z-index:31;background:var(--surface);color:var(--ink);border:1px solid var(--line);border-radius:10px;box-shadow:0 12px 34px rgb(0 0 0/.22);padding:5px;display:flex;flex-direction:column;min-width:190px;font-size:.86rem}
+.jrefmenu[hidden]{display:none}
+.jrefmenu .h{font-weight:600;padding:5px 8px 6px;border-bottom:1px solid var(--line);margin-bottom:3px;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.jrefmenu button{border:0;background:none;font:inherit;color:inherit;text-align:left;padding:6px 8px;border-radius:7px;cursor:pointer}
+.jrefmenu button:hover{background:var(--surface-2)}
+.jtagpop .it .ar{display:flex;flex-direction:column;min-width:0;flex:1}
+.jtagpop .it .ar b{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.jtagpop .it .ar small{color:var(--ink-3);font-size:.76rem}
+.jtagpop.atpop{width:320px}
+.jcarry{display:flex;align-items:center;gap:8px;flex-wrap:wrap;border:1px dashed color-mix(in srgb,var(--accent) 55%,var(--line));background:color-mix(in srgb,var(--accent) 6%,var(--surface));border-radius:10px;padding:8px 10px;margin:0 0 10px;font-size:.88rem}
+.jcarry[hidden]{display:none}
+.jcarry .tx{flex:1 1 220px;min-width:0}
+.jcarry .tx small{display:block;color:var(--ink-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.toast button{margin-left:10px;border:0;background:none;color:inherit;font:inherit;font-weight:700;text-decoration:underline;cursor:pointer;padding:0}
 .jflash{animation:jfl 1.6s ease}
 @keyframes jfl{0%,40%{box-shadow:0 0 0 3px var(--focus)}100%{box-shadow:0 0 0 0 transparent}}
 dialog.cmdk{padding:0;width:min(620px,calc(100% - 32px));margin-top:10vh;overflow:hidden}
