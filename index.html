@@ -14,7 +14,7 @@
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500&family=Space+Grotesk:wght@500;700&display=swap">
-<link rel="stylesheet" href="css/styles.css?v=v31">
+<link rel="stylesheet" href="css/styles.css?v=v36-foco">
 </head>
 <body>
 <canvas id="scene" aria-hidden="true"></canvas>
@@ -60,7 +60,8 @@
       </div>
       <div class="cyc" id="cyc" aria-hidden="true"></div>
       <div class="now" id="now"></div>
-      <div class="keys"><kbd>Espacio</kbd> iniciar o pausar · <kbd>R</kbd> reiniciar · <kbd>S</kbd> saltar · <kbd>I</kbd> interrupción · <kbd>C</kbd> calendario · <kbd>Ctrl K</kbd> buscar</div>
+      <div class="foco" id="foco"></div>
+      <div class="keys"><kbd>Espacio</kbd> iniciar o pausar · <kbd>R</kbd> reiniciar · <kbd>S</kbd> saltar · <kbd>I</kbd> interrupción · <kbd>C</kbd> calendario · <kbd>F</kbd> vista Foco · <kbd>T</kbd> nueva tarea · <kbd>Ctrl K</kbd> buscar</div>
     </section>
     <section class="panel tasks-panel" aria-label="Tareas">
       <div class="ph">
@@ -287,6 +288,7 @@
         <h3>Apariencia</h3><p class="meta setdesc">Los cambios de esta sección se aplican al momento.</p>
     <div class="setopt"><div class="setlbl">Tema</div><div class="seg" id="themeSeg" role="group" aria-label="Tema"><button type="button" data-theme-opt="system" data-ic="monitor">Sistema</button><button type="button" data-theme-opt="light" data-ic="sun">Claro</button><button type="button" data-theme-opt="dark" data-ic="moon">Oscuro</button></div></div>
     <div class="setopt"><div class="setlbl">Paneles</div><div class="seg" id="laySeg" role="group" aria-label="Ubicación de los paneles"><button type="button" data-lay-opt="side" data-ic="cols">Al lado del reloj</button><button type="button" data-lay-opt="below" data-ic="rows">Debajo del reloj</button></div><div class="meta" id="layNote">Al lado se usa en pantallas anchas, de 1100 px o más. En pantallas más angostas los paneles van siempre debajo.</div></div>
+    <div class="setopt"><div class="setlbl">Ubicación del panel de Foco</div><div class="seg" id="foPosSeg" role="group" aria-label="Ubicación del panel de Foco"><button type="button" data-fopos="side" data-ic="cols">Al lado del reloj</button><button type="button" data-fopos="below" data-ic="rows">Debajo del reloj</button></div><div class="meta">Dónde van las tarjetas Ahora, Siguiente y Después en la vista Foco (tecla F). Al lado se usa en pantallas de 760 px de ancho o más; en las más angostas van siempre debajo.</div></div>
     <div><div class="setlbl">Fondo</div><div class="bgpick" id="bgPick"></div></div>
     <label class="chk"><input type="checkbox" id="cFocusMode"> Modo enfoque: atenuar todo menos el reloj mientras corre un pomodoro</label>
       </section>
@@ -357,8 +359,20 @@
   <div class="cklist" id="ckList" role="listbox"></div>
   <div class="ckfoot">↑ ↓ para moverte · Enter para abrir · Esc para cerrar</div>
 </dialog>
+<dialog id="tqDlg" class="cmdk tqdlg" aria-label="Nueva tarea">
+  <form id="tqForm">
+    <input type="text" id="tqTitle" placeholder="Nueva tarea…" autocomplete="off" aria-label="Nombre de la tarea">
+    <div class="tqrow">
+      <input type="text" id="tqTag" list="tags" placeholder="Proyecto (opcional)" aria-label="Proyecto" autocomplete="off">
+      <label class="chk"><input type="checkbox" id="tqStar"> Para hoy (★)</label>
+      <label class="chk"><input type="checkbox" id="tqFoco"> Agregar a Foco <span class="tqh" id="tqFocoH"></span></label>
+    </div>
+    <button type="submit" hidden></button>
+    <div class="ckfoot">Enter para crear · Esc para cerrar</div>
+  </form>
+</dialog>
 <div class="albar" id="alBar" role="alert" hidden></div>
 <div class="toast" id="toast" hidden></div>
-<script src="js/app.js?v=v31"></script>
+<script src="js/app.js?v=v36-foco"></script>
 </body>
 </html>
