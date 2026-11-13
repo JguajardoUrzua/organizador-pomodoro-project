@@ -64,7 +64,10 @@ function startTrack(id){
   if(T.running) T.track.since=Date.now(); else start();
   saveT(); commit();
 }
-function start(){ ensureAudio(); if(T.running) return; T.running=true; T.endAt=Date.now()+T.remaining; T.startedAt=T.startedAt||Date.now(); if(T.track&&T.mode==="focus") T.track.since=Date.now(); saveT(); tick(); }
+function start(){ ensureAudio(); if(T.running) return;
+  // starting the focus clock with no task on it picks up the first task in Foco (Ahora)
+  if(T.mode==="focus"&&!T.track&&!(S.incident&&taskById(S.incident.id))){ const f0=focoIds()[0]; if(f0){ startTrack(f0); return; } }
+  T.running=true; T.endAt=Date.now()+T.remaining; T.startedAt=T.startedAt||Date.now(); if(T.track&&T.mode==="focus") T.track.since=Date.now(); saveT(); tick(); }
 function pause(){ if(!T.running) return; const had=!!T.track; stopTrack(); T.remaining=left(); T.running=false; saveT(); if(had) commit(); else tick(); }
 function setMode(m,auto){ const had=!!T.track; stopTrack(); T.mode=m; T.running=false; T.remaining=durMs(m); T.startedAt=null; T.pomoTasks={}; saveT(); if(auto) start(); if(had) commit(); else tick(); }
 function reset(){ const had=!!T.track; stopTrack(); T.running=false; T.remaining=durMs(T.mode); T.startedAt=null; T.pomoTasks={}; saveT(); if(had) commit(); else tick(); }
