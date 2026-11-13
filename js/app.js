@@ -29,7 +29,7 @@ function schedule(){ if(!docRef) return; dirty=true; clearTimeout(saveTimer); sa
 async function flush(){
   if(!docRef||saving||!dirty) return;
   saving=true; dirty=false; setSync("Guardando…");
-  try{ await docRef.set(JSON.parse(JSON.stringify(S))); setSync("Guardado en tu cuenta"); }
+  try{ await docRef.set(JSON.parse(JSON.stringify(S))); setSync(BRAIN_API?"Guardado en Brain":"Guardado en tu cuenta"); }
   catch(e){ setSync(e&&e.code==="quota_exceeded"?"Sin espacio para guardar":"Guardado solo en este navegador"); if(e&&e.code==="unavailable") dirty=true; }
   saving=false; if(dirty) saveTimer=setTimeout(flush,1500);
 }
@@ -1164,7 +1164,7 @@ async function jFlush(){ if(!jCol) return; const ks=[...jDirty]; jDirty.clear();
   for(const k of ks){ const d=J.days[k]; if(!d) continue;
     try{ await jCol.doc(k).set(d.deleted?{html:"",updatedAt:d.updatedAt,deleted:true}:{html:d.html,updatedAt:d.updatedAt}); }
     catch(e){ ok=false; jDirty.add(k); } }
-  jSet(ok?"Guardado en tu cuenta":"Guardado solo en este navegador"); if(!ok){ clearTimeout(jFlushT); jFlushT=setTimeout(jFlush,8000); } }
+  jSet(ok?(BRAIN_API?"Guardado en Brain":"Guardado en tu cuenta"):"Guardado solo en este navegador"); if(!ok){ clearTimeout(jFlushT); jFlushT=setTimeout(jFlush,8000); } }
 function jImport(jx){ const now=Date.now();
   for(const k in J.days) if(!jx.days[k]){ J.days[k]={html:"",updatedAt:now,deleted:true}; jDirty.add(k); }
   for(const k in jx.days){ J.days[k]={...jx.days[k],updatedAt:now}; jDirty.add(k); }
@@ -2213,6 +2213,35 @@ addEventListener("focus",()=>{ alCheck(); if(alBlinkT) alBlink(false); });
 document.addEventListener("visibilitychange",()=>{ alCheck(); if(!document.hidden&&document.hasFocus()&&alBlinkT) alBlink(false); });
 document.addEventListener("pointerdown",ensureAudio,{once:true});
 setInterval(alCheck,15000); setTimeout(alCheck,1500);
+
+// ---------- Brain: dentro de Brain, los datos van a su base de datos ----------
+// Cuando Focus se abre desde Brain (en /apps/focus/), guarda el panel y la bitácora
+// con la API de Brain (/api/focus). Gana lo más reciente: si este navegador tiene
+// cambios más nuevos que Brain, se suben; si Brain tiene algo más nuevo, se trae.
+// Para pasar datos de otro Focus, basta con Importar respaldo aquí dentro.
+// Fuera de Brain (GitHub Pages) todo sigue solo en el navegador.
+const BRAIN_API = /\/apps\/focus\//.test(location.pathname) ? "/api/focus" : null;
+async function brainPut(path,body){
+  const r=await fetch(BRAIN_API+path,{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
+  if(!r.ok) throw Object.assign(new Error("Brain respondió "+r.status),{code:r.status===413?"quota_exceeded":"unavailable"});
+}
+async function brainStart(){
+  let srv;
+  try{ const r=await fetch(BRAIN_API,{cache:"no-store"}); if(!r.ok) throw new Error(String(r.status)); srv=await r.json(); }
+  catch{ setSync("Guardado solo en este navegador"); jSet("Guardado solo en este navegador"); return; }
+  docRef={set:d=>brainPut("/panel",d)};
+  jCol={doc:k=>({set:d=>brainPut("/journal/"+k,d)})};
+  const sp=srv&&srv.panel;
+  if(sp&&(+sp.updatedAt||0)>(S.updatedAt||0)){ S=normalize(sp); lsSet(LS,S); render(); setSync("Guardado en Brain"); }
+  else if(S.updatedAt){ dirty=true; flush(); }
+  else setSync("Guardado en Brain");
+  const sj=normJ({days:(srv&&srv.days)||{}}); let changed=false;
+  for(const k in sj.days){ const l=J.days[k]; if(!l||sj.days[k].updatedAt>l.updatedAt){ J.days[k]=sj.days[k]; changed=true; } }
+  for(const k in J.days){ const s=sj.days[k]; if(!s||J.days[k].updatedAt>s.updatedAt) jDirty.add(k); }
+  if(changed){ lsSet(LJ,J); if(!jEdited) jOpen(jCur); }
+  if(jDirty.size) jFlush(); else jSet("");
+}
+if(BRAIN_API) brainStart();
 
 render();
 })();
