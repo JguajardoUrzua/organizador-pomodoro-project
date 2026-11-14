@@ -1,6 +1,6 @@
 (() => {
 const LS = "pomodoro-panel-v1", LT = "pomodoro-timer-v1";
-const DEF = {settings:{focus:25,short:5,long:15,longEvery:4,goal:8,autoBreaks:false,autoFocus:false,sound:true,ambKind:"rain",ambVol:.5,ambSync:false,jtags:[],prodTags:[],projAct:[]},
+const DEF = {settings:{focus:25,short:5,long:15,longEvery:4,goal:8,autoBreaks:false,autoFocus:false,sound:true,ambKind:"rain",ambVol:.5,ambSync:false,jtags:[],prodTags:[],projAct:[],planHeads:["🔥 Primero","⏳ Si queda tiempo","🙋 Esperando a otros"]},
   tasks:[],notes:[],log:[],tlog:{},focus:[],activeTaskId:null,updatedAt:0};
 const $ = s => document.querySelector(s);
 const uid = () => Math.random().toString(36).slice(2,10)+Date.now().toString(36).slice(-4);
@@ -730,6 +730,7 @@ document.addEventListener("keydown",e=>{
   else if(e.key==="i"||e.key==="I") interruption();
   else if(e.key==="c"||e.key==="C"){ e.preventDefault(); calOpen(); }
   else if(e.key==="p"||e.key==="P"){ e.preventDefault(); pjOpenDlg(); }
+  else if(e.key==="q"||e.key==="Q"){ e.preventDefault(); triOpen(); }
   else if(e.key==="f"||e.key==="F"){ e.preventDefault(); focoView(!document.body.classList.contains("focoview")); }
   else if(e.key==="t"||e.key==="T"){ e.preventDefault(); tqOpen(); }
   else if(e.key==="Escape"&&document.body.classList.contains("focoview")) focoView(false);
@@ -762,7 +763,7 @@ $("#setNav").addEventListener("keydown",e=>{ const k=e.key; if(!["ArrowDown","Ar
 $("#setClose").addEventListener("click",()=>dlg.close("cancel"));
 $("#openSettings").addEventListener("click",()=>{ const s=S.settings;
   $("#cFocus").value=s.focus;$("#cShort").value=s.short;$("#cLong").value=s.long;$("#cEvery").value=s.longEvery;$("#cGoal").value=s.goal;
-  $("#cAutoB").checked=s.autoBreaks;$("#cAutoF").checked=s.autoFocus;$("#cSound").checked=s.sound;$("#cFocusMode").checked=s.focusMode!==false; $("#cAlSound").checked=s.alertSound!==false; alPermUI(); renderBgPick(); projSetRender(); setSec(lsGet("pp-setsec")||"timer"); dlg.returnValue=""; dlg.showModal(); });
+  $("#cAutoB").checked=s.autoBreaks;$("#cAutoF").checked=s.autoFocus;$("#cSound").checked=s.sound;$("#cFocusMode").checked=s.focusMode!==false; $("#cAlSound").checked=s.alertSound!==false; alPermUI(); renderBgPick(); projSetRender(); planSetRender(); setSec(lsGet("pp-setsec")||"timer"); dlg.returnValue=""; dlg.showModal(); });
 dlg.addEventListener("close",()=>{ if(dlg.returnValue!=="ok") return;
   const n=(id,min,max,d)=>{const v=Math.round(+$(id).value);return v>=min&&v<=max?v:d};
   const s=S.settings, old={...s};
@@ -1149,6 +1150,7 @@ function jClean(html){
   const doc=new DOMParser().parseFromString("<body>"+String(html||"")+"</body>","text/html");
   (function walk(n){ [...n.childNodes].forEach(c=>{
     if(c.nodeType===3) return; if(c.nodeType!==1){ c.remove(); return; }
+    if(c.tagName==="SPAN"&&c.classList.contains("jhc")){ c.remove(); return; }
     if(c.tagName==="SPAN"&&c.classList.contains("jref")){ const id=String(c.getAttribute("data-task")||"").replace(/[^a-z0-9]/gi,""), tt=c.querySelector(".tt"), tx=(tt?tt.textContent:c.textContent).replace(/\s+/g," ").trim();
       [...c.attributes].forEach(a=>c.removeAttribute(a.name)); if(!id){ c.replaceWith(doc.createTextNode(tx)); return; }
       c.className="jref"; c.setAttribute("data-task",id); c.setAttribute("contenteditable","false"); c.textContent=tx||"tarea"; return; }
@@ -1185,6 +1187,7 @@ function jText(src){
   const nl=()=>{ if(out&&!out.endsWith("\n")) out+="\n"; };
   (function walk(n){ n.childNodes.forEach(c=>{
     if(c.nodeType===3){ out+=c.data; return; } if(c.nodeType!==1||(c.classList&&c.classList.contains("jtask"))) return;
+    if(c.classList&&c.classList.contains("jhc")) return;
     if(c.classList&&c.classList.contains("jref")){ const t=taskById(c.dataset.task), tt=c.querySelector(".tt"); out+=(t&&t.completed?"[x] ":"[ ] ")+(t?t.title:(tt?tt.textContent:c.textContent)); return; }
     const tg=c.tagName;
     if(tg==="BR"){ out+="\n"; return; }
@@ -1224,7 +1227,7 @@ function jTemplate(k,heads){
 
 // ---- persistence ----
 function jStore(k){ if(!jEdited||k!==jCur) return; jEdited=false;
-  const html=jEd.innerHTML, empty=!jEd.textContent.trim();
+  const html=jEd.querySelector(".jhc,.jhid,.jhdrop")?(()=>{ const x=jEd.cloneNode(true); x.querySelectorAll(".jhc").forEach(n=>n.remove()); x.querySelectorAll(".jhid,.jhdrop").forEach(n=>{ n.classList.remove("jhid","jhdrop"); if(!n.className) n.removeAttribute("class"); }); x.querySelectorAll("[draggable]").forEach(n=>n.removeAttribute("draggable")); return x.innerHTML; })():jEd.innerHTML, empty=!jEd.textContent.trim();
   J.days[k]=empty&&!jEd.querySelector("li")?{html:"",updatedAt:Date.now(),deleted:true}:{html,updatedAt:Date.now()};
   if(html.length>200000) toast("Este día está muy largo; considera seguir en un día nuevo.");
   lsSet(LJ,J); jDirty.add(k); jFlushSoon(); }
@@ -1250,13 +1253,14 @@ function jOpen(k){ jSaveNow(); jCur=k; const live=jLive(k);
   jEd.hidden=!live; $("#jTools").hidden=!live; $("#jEmpty").hidden=live;
   if(live){ jEd.innerHTML=jClean(J.days[k].html); jLinkify(jEd); }
   else { jEd.innerHTML=""; const pk=jPrevDay(k); $("#jStartHeads").hidden=!pk; $("#jEmptyMsg").textContent=k===jToday()?"Aún no empiezas la bitácora de hoy.":`No hay bitácora para el ${jLabel(k,true)}.`;
-    $("#jStartHeads").textContent=pk?`Empezar con los encabezados del ${jLabel(pk,true).replace("Hoy · ","")}`:""; }
+    $("#jStartPlan").hidden=!(S.settings.planHeads||[]).length; $("#jStartHeads").classList.toggle("primary",$("#jStartPlan").hidden); $("#jStartHeads").textContent=pk?`Empezar con los encabezados del ${jLabel(pk,true).replace("Hoy · ","")}`:""; }
   jDayList(); jClosedRender(); jRefPaint(); jCarryRender(); }
-function jStart(heads){ J.days[jCur]={html:jTemplate(jCur,heads),updatedAt:Date.now()}; lsSet(LJ,J); jDirty.add(jCur); jFlushSoon(); jOpen(jCur);
+function jStart(heads){ J.days[jCur]={html:heads==="plan"?jTemplate(jCur,false).replace(/<div><br><\/div>$/,"")+jPlanHtml(S.settings.planHeads||[]):jTemplate(jCur,heads),updatedAt:Date.now()}; lsSet(LJ,J); jDirty.add(jCur); jFlushSoon(); jOpen(jCur);
   // caret at the end of the first section, ready to type
-  const tabs=[...jEd.querySelectorAll("div")].filter(d=>d.textContent==="\t"); const tgt=tabs[0]||jEd.lastElementChild||jEd;
+  const tabs=[...jEd.querySelectorAll("div")].filter(d=>d.textContent==="\t"), h0=heads==="plan"&&jHeads(jEd)[0]; const tgt=(h0&&h0.nextElementSibling)||tabs[0]||jEd.lastElementChild||jEd;
   jEd.focus(); const r=document.createRange(); r.selectNodeContents(tgt); r.collapse(false); const sl=getSelection(); sl.removeAllRanges(); sl.addRange(r); }
 $("#jStartHeads").addEventListener("click",()=>jStart(true));
+$("#jStartPlan").addEventListener("click",()=>jStart("plan"));
 $("#jStartBlank").addEventListener("click",()=>jStart(false));
 $("#jDay").addEventListener("change",e=>jOpen(e.target.value));
 $("#jToday").addEventListener("click",()=>jOpen(jToday()));
@@ -1862,7 +1866,7 @@ function jDM(k){ return k===dayKey(Date.now())?"hoy":k.slice(8)+"/"+k.slice(5,7)
 function jRefHtml(t,day){ const today=jToday(), moved=!t.completed&&t.plan&&t.plan!==day, late=!t.completed&&t.due&&t.due<today&&!moved;
   const st=t.completed?"cerrada":moved?(t.plan===jToday()?"movida a hoy":"movida al "+jDM(t.plan)):t.status==="doing"?"en curso":t.status==="paused"?"en pausa":late?"atrasada":"";
   return `<span class="bx" title="${t.completed?"Reabrir":"Cerrar"} la tarea"></span><span class="tt">${esc(t.title)}</span>${t.tag?`<span class="pj">${esc(t.tag)}</span>`:""}${st?`<span class="st ${late?"late":""}">${st}</span>`:""}`; }
-function jRefPaint(root,day){ root=root||jEd; day=day||jCur; root.querySelectorAll(".jref[data-task]").forEach(c=>{ const t=taskById(c.dataset.task);
+function jRefPaint(root,day){ root=root||jEd; day=day||jCur; if(root===jEd) setTimeout(jHeadPaint,0); root.querySelectorAll(".jref[data-task]").forEach(c=>{ const t=taskById(c.dataset.task);
   if(!t){ c.className="jref gone"; c.title="La tarea ya no existe"; return; }
   const h=jRefHtml(t,day), moved=!t.completed&&t.plan&&t.plan!==day;
   c.classList.toggle("done",!!t.completed); c.classList.toggle("moved",!!moved); c.classList.remove("gone");
@@ -1917,11 +1921,14 @@ document.addEventListener("scroll",()=>{ if(jAQ) jAtRender(); },true);
 const jRM=document.createElement("div"); jRM.className="jrefmenu"; jRM.hidden=true; jRM.setAttribute("role","menu"); document.body.appendChild(jRM);
 let jRMChip=null;
 function jRMClose(){ jRM.hidden=true; jRMChip=null; }
-jEd.addEventListener("mousedown",e=>{ const c=e.target.closest&&e.target.closest(".jref[data-task]"); if(!c) return; e.preventDefault();
+jEd.addEventListener("mousedown",e=>{ const c=e.target.closest&&e.target.closest(".jref[data-task]"); if(!c||!e.target.closest(".bx")) return; e.preventDefault();
   const t=taskById(c.dataset.task); if(!t){ toast("Esa tarea ya no existe."); return; }
-  if(e.target.closest(".bx")){ jRMClose(); setStatus(t,t.completed?"todo":"done"); commit(); jRefPaint(); toast(t.completed?"Tarea cerrada: "+t.title:"Tarea reabierta: "+t.title); return; }
+  jRMClose(); setStatus(t,t.completed?"todo":"done"); commit(); jRefPaint(); toast(t.completed?"Tarea cerrada: "+t.title:"Tarea reabierta: "+t.title); });
+jEd.addEventListener("click",e=>{ const c=e.target.closest&&e.target.closest(".jref[data-task]"); if(!c||e.target.closest(".bx")) return; e.preventDefault();
+  const t=taskById(c.dataset.task); if(!t){ toast("Esa tarea ya no existe."); return; }
   if(jRMChip===c){ jRMClose(); return; } jRMChip=c; const hasFoco=typeof focoAdd==="function";
-  jRM.innerHTML=`<div class="h">${esc(t.title)}</div><button type="button" data-rm="go">↗ Ir a la tarea</button>${t.completed?"":`<button type="button" data-rm="play">▶ Empezar ahora</button>${hasFoco?`<button type="button" data-rm="foco">◎ Agregar a Foco</button>`:""}`}${!t.completed&&t.plan&&t.plan!==jCur&&jCur>=jToday()?`<button type="button" data-rm="here">↩ Traer de vuelta a este día</button>`:""}<button type="button" data-rm="del">✕ Quitar de este día</button>`;
+  const myH=jHeadOf(c), hs=jHeads(jEd).filter(h=>h!==myH), nx=jCur>=jToday()?jAddDays(jCur,1):null;
+  jRM.innerHTML=`<div class="h">${esc(t.title)}</div><button type="button" data-rm="go">↗ Ir a la tarea</button>${t.completed?"":`<button type="button" data-rm="play">▶ Empezar ahora</button>${hasFoco?`<button type="button" data-rm="foco">◎ Agregar a Foco</button>`:""}`}${!t.completed&&t.plan&&t.plan!==jCur&&jCur>=jToday()?`<button type="button" data-rm="here">↩ Traer de vuelta a este día</button>`:""}<button type="button" data-rm="del">✕ Quitar de este día</button>${t.completed?"":`${hs.length||nx?`<div class="g">Mover a…</div>`:""}${hs.map((h,i)=>`<button type="button" data-rm="mv" data-hi="${jHeads(jEd).indexOf(h)}">${esc(jHText(h))}</button>`).join("")}${nx?`<button type="button" data-rm="tmw">${nx===jAddDays(jToday(),1)?"Mañana":"Día siguiente"} (${jDM(nx)})</button>`:""}`}`;
   jRM.hidden=false; const rc=c.getBoundingClientRect(), w=jRM.offsetWidth, h=jRM.offsetHeight;
   jRM.style.left=Math.max(8,Math.min(innerWidth-w-8,rc.left))+"px"; jRM.style.top=(rc.bottom+h+8>innerHeight?Math.max(8,rc.top-h-6):rc.bottom+6)+"px"; });
 jRM.addEventListener("mousedown",e=>e.preventDefault());
@@ -1930,6 +1937,8 @@ jRM.addEventListener("click",e=>{ const b=e.target.closest("[data-rm]"); if(!b||
   else if(a==="play"){ startTrack(t.id); toast("Trabajando en «"+t.title+"»"); }
   else if(a==="foco"&&typeof focoAdd==="function") focoAdd(t.id);
   else if(a==="here"){ jRefPlan(t,jCur); jRefPaint(); }
+  else if(a==="mv"){ const h=jHeads(jEd)[+b.dataset.hi]; if(h){ jMoveChip(c,h); toast("Movida a «"+jHText(h)+"»"); } }
+  else if(a==="tmw"){ const nx=jAddDays(jCur,1), hd=jHeadOf(c); jChipOut(c); jEdited=true; jStore(jCur); jAddChips(nx,[{t,head:hd?jHText(hd):""}]); jHeadPaint(); toast("Movida al "+jDM(nx)+(hd?" · «"+jHText(hd)+"»":"")); }
   else if(a==="del"){ const nx=c.nextSibling; if(nx&&nx.nodeType===3&&/^\s/.test(nx.data)) nx.deleteData(0,1); c.remove(); jEdited=true; jStore(jCur);
     if(t.plan===jCur){ t.plan=null; commit(); } toast("Quitada de este día. La tarea y su fecha siguen igual."); } });
 document.addEventListener("mousedown",e=>{ if(!jRM.hidden&&!jRM.contains(e.target)&&!(e.target.closest&&e.target.closest(".jref"))) jRMClose(); });
@@ -1944,10 +1953,123 @@ function jCarryRender(){ const el=$("#jCarry"); if(!el) return; const today=jTod
   const h=`<span class="tx"><b>${L.length} pendiente${L.length!==1?"s":""} de días anteriores</b><small>${L.slice(0,3).map(t=>esc(t.title)).join(" · ")}${L.length>3?" …":""}</small></span><button class="btn sm primary" type="button" data-jc="go">Pasarlas a hoy</button><button class="btn sm ghost" type="button" data-jc="later">Ahora no</button>`;
   el.hidden=false; if(el.dataset.h!==h){ el.dataset.h=h; el.innerHTML=h; } }
 function jCarryGo(){ const today=jToday(), L=jCarryList(); if(!L.length) return; if(jCur===today) jSaveNow();
-  const base=jLive(today)?J.days[today].html:jTemplate(today,true);
-  const add=`<div><br></div><div><b>Pendientes de días anteriores</b></div>`+L.map(t=>`<div><span class="jref" data-task="${t.id}" contenteditable="false">${esc(t.title)}</span>&nbsp;</div>`).join("");
-  J.days[today]={html:base+add,updatedAt:Date.now()}; lsSet(LJ,J); jDirty.add(today); jFlushSoon();
-  L.forEach(t=>{ t.plan=today; t.due=today; }); commit(); jOpen(today); toast(L.length===1?"1 tarea pasada a hoy":`${L.length} tareas pasadas a hoy`); }
+  const roots={}, items=L.map(t=>{ const k=t.plan; if(!roots[k]){ roots[k]=document.createElement("div"); roots[k].innerHTML=jClean(jLive(k)?J.days[k].html:""); }
+    const c=roots[k].querySelector(`.jref[data-task="${t.id}"]`), h=c&&jHeadOf(c,roots[k]); return {t,head:h?jHText(h):"Pendientes de días anteriores"}; });
+  jAddChips(today,items); jOpen(today); toast(L.length===1?"1 tarea pasada a hoy":`${L.length} tareas pasadas a hoy`); }
+// ---- plan sublists: bold lines are headings; the chips under one form its sublist ----
+function jAddDays(k,n){ const d=new Date(k+"T12:00"); d.setDate(d.getDate()+n); return dayKey(d); }
+function jPlanHtml(L){ return L.map(h=>`<div><b>${esc(h)}</b></div><div><br></div>`).join(""); }
+function jHText(el){ let o=""; (function w(n){ n.childNodes.forEach(c=>{ if(c.nodeType===3) o+=c.data; else if(c.nodeType===1&&!(c.classList&&c.classList.contains("jhc"))) w(c); }); })(el); return o.replace(/[\s ]+/g," ").trim(); }
+function jIsHead(el){ if(!el||el.nodeType!==1||!/^(DIV|P)$/.test(el.tagName)) return false; const tx=jHText(el); if(!tx||tx.length>80||/^-{4,}$/.test(tx)) return false;
+  if(el.querySelector(".jref,.jtask,.jtag,a,table,pre,ul,ol,font[size='5']")) return false;
+  let bt=""; el.querySelectorAll("b,strong").forEach(b=>{ const up=b.parentElement.closest("b,strong"); if(!up||!el.contains(up)) bt+=jHText(b)+" "; });
+  return bt.replace(/\s+/g," ").trim()===tx; }
+function jHeads(root){ return [...root.children].filter(jIsHead); }
+function jTop(n,root){ root=root||jEd; while(n&&n.parentElement&&n.parentElement!==root) n=n.parentElement; return n&&n.parentElement===root?n:null; }
+function jHeadOf(c,root){ root=root||jEd; let n=jTop(c,root); while(n){ if(jIsHead(n)) return n; n=n.previousElementSibling; } return null; }
+function jSecBlocks(h){ const L=[]; let n=h.nextElementSibling; while(n&&!jIsHead(n)){ L.push(n); n=n.nextElementSibling; } return L; }
+const jEmptyBlk=n=>!n.textContent.replace(/[\s ]/g,"")&&!n.querySelector(".jref,.jtask,.jlink,table,pre,img");
+function jSecInsert(root,h,blk){ if(!h){ const last=root.lastElementChild; if(last&&jEmptyBlk(last)&&last.previousElementSibling) last.before(blk); else root.appendChild(blk); return; }
+  let at=h; jSecBlocks(h).forEach(n=>{ if(!jEmptyBlk(n)) at=n; }); at.after(blk); }
+// take a chip out of its line: the whole line goes when nothing else is in it
+function jChipOut(c){ const top=jTop(c), li=c.closest("li"), line=li&&jEd.contains(li)?li:top;
+  const nx=c.nextSibling; if(nx&&nx.nodeType===3&&/^[\s ]/.test(nx.data)) nx.deleteData(0,1); c.remove();
+  if(line&&jEmptyBlk(line)) line.remove(); }
+function jMoveChip(c,h){ if(!c||!h) return; const top=jTop(c), solo=top&&top!==h&&top.querySelectorAll(".jref").length===1&&!jHText(top).replace(c.textContent,"").replace(/[\s ]/g,"")&&!top.querySelector("li");
+  let blk; if(solo){ blk=top; top.remove(); } else { jChipOut(c); blk=document.createElement("div"); blk.appendChild(c); blk.appendChild(document.createTextNode(" ")); }
+  jSecInsert(jEd,h,blk); const key=jFoldKey(h), F=jFolds(); if(F.includes(key)) jFoldSet(key,false);
+  jEdited=true; jStore(jCur); jHeadPaint(); }
+// folded headings per day, in this browser
+function jFolds(){ const x=lsGet("pp-jfold")||{}; return Array.isArray(x[jCur])?x[jCur]:[]; }
+function jFoldKey(h){ return fold(jHText(h)); }
+function jFoldSet(key,on){ const x=lsGet("pp-jfold")||{}, today=jToday(); Object.keys(x).forEach(k=>{ if(k<jAddDays(today,-60)) delete x[k]; });
+  const L=new Set(Array.isArray(x[jCur])?x[jCur]:[]); if(on) L.add(key); else L.delete(key); x[jCur]=[...L]; lsSet("pp-jfold",x); }
+function jHeadPaint(){ if(jEd.hidden) return; const F=jFolds(), hs=jHeads(jEd), seen=new Set();
+  hs.forEach(h=>{ const B=jSecBlocks(h), ids=[...new Set(B.flatMap(n=>[...n.querySelectorAll(".jref[data-task]")].map(c=>c.dataset.task)))], tk=ids.map(taskById).filter(Boolean);
+    const key=jFoldKey(h), fo=F.includes(key); seen.add(h);
+    B.forEach(n=>n.classList.toggle("jhid",fo)); B.forEach(n=>{ if(!n.className) n.removeAttribute("class"); });
+    let bd=h.querySelector(":scope > .jhc");
+    if(!tk.length&&!fo){ if(bd) bd.remove(); return; }
+    const done=tk.filter(t=>t.completed).length, tx=(fo?"▸ ":"▾ ")+(tk.length?`${done} de ${tk.length}`:"oculto");
+    if(!bd){ bd=document.createElement("span"); bd.className="jhc"; bd.setAttribute("contenteditable","false"); const br=h.lastChild&&h.lastChild.nodeName==="BR"?h.lastChild:null; h.insertBefore(bd,br); }
+    if(bd.textContent!==tx) bd.textContent=tx; bd.classList.toggle("all",tk.length>0&&done===tk.length); bd.title=fo?"Mostrar esta sublista":"Ocultar esta sublista"; });
+  jEd.querySelectorAll(".jhc").forEach(b=>{ if(!seen.has(b.parentElement)) b.remove(); });
+  jEd.querySelectorAll(".jhid").forEach(n=>{ const h=jHeadOf(n); if(!h||!F.includes(jFoldKey(h))) n.classList.remove("jhid"); });
+  jEd.querySelectorAll(".jref[data-task]").forEach(c=>{ if(c.getAttribute("draggable")!=="true") c.setAttribute("draggable","true"); }); }
+jEd.addEventListener("mousedown",e=>{ const b=e.target.closest&&e.target.closest(".jhc"); if(!b) return; e.preventDefault(); const h=b.parentElement, key=jFoldKey(h); jFoldSet(key,!jFolds().includes(key)); jHeadPaint(); });
+let jHPT=0; jEd.addEventListener("input",()=>{ clearTimeout(jHPT); jHPT=setTimeout(jHeadPaint,350); });
+// drag a chip onto a heading (or anywhere in its sublist) to move it there
+let jDrag=null, jDropH=null;
+const jDropClear=()=>{ if(jDropH) jDropH.classList.remove("jhdrop"); jDropH=null; };
+jEd.addEventListener("dragstart",e=>{ const el=e.target.nodeType===1?e.target:e.target.parentElement; let c=el&&el.closest(".jref[data-task]");
+  if(!c){ const sl=getSelection(), L=sl.rangeCount?[...jEd.querySelectorAll(".jref[data-task]")].filter(x=>sl.containsNode(x,true)):[]; if(L.length===1&&!sl.toString().replace(L[0].textContent,"").replace(/[\s\u00a0]/g,"")) c=L[0]; }
+  if(!c){ jDrag=null; return; } jDrag=c; jRMClose(); e.dataTransfer.effectAllowed="move"; try{ e.dataTransfer.setData("text/plain",c.textContent); }catch{} });
+jEd.addEventListener("dragover",e=>{ if(!jDrag) return; e.preventDefault(); e.dataTransfer.dropEffect="move";
+  const el=document.elementFromPoint(e.clientX,e.clientY), top=el&&jEd.contains(el)?jTop(el):null; let h=top?(jIsHead(top)?top:jHeadOf(top)):null;
+  if(!h){ const hs=jHeads(jEd); h=hs.filter(x=>x.getBoundingClientRect().top<=e.clientY).pop()||null; }
+  if(h!==jDropH){ jDropClear(); jDropH=h; if(h) h.classList.add("jhdrop"); } });
+jEd.addEventListener("drop",e=>{ if(!jDrag) return; e.preventDefault(); const c=jDrag, h=jDropH; jDrag=null; jDropClear();
+  if(h&&h!==jHeadOf(c)){ jMoveChip(c,h); toast("Movida a «"+jHText(h)+"»"); } });
+jEd.addEventListener("dragend",()=>{ jDrag=null; jDropClear(); });
+jEd.addEventListener("dragleave",e=>{ if(jDrag&&!jEd.contains(e.relatedTarget)) jDropClear(); });
+// add task chips to any day, under a heading (created when missing); the day becomes their date
+function jAddChips(day,items){ const today=jToday(); if(jCur===day) jSaveNow();
+  const root=document.createElement("div"); root.innerHTML=jClean(jLive(day)?J.days[day].html:jTemplate(day,false));
+  items.forEach(({t,head})=>{ root.querySelectorAll(`.jref[data-task="${t.id}"]`).forEach(x=>{ const top=jTop(x,root); x.remove(); if(top&&jEmptyBlk(top)) top.remove(); });
+    const blk=document.createElement("div"); blk.innerHTML=`<span class="jref" data-task="${t.id}" contenteditable="false">${esc(t.title)}</span>&nbsp;`;
+    let h=head?jHeads(root).find(x=>fold(jHText(x))===fold(head)):null;
+    if(!h&&head){ const last=root.lastElementChild; if(!(last&&jEmptyBlk(last))) root.insertAdjacentHTML("beforeend","<div><br></div>"); root.insertAdjacentHTML("beforeend",`<div><b>${esc(head)}</b></div>`); h=root.lastElementChild; }
+    jSecInsert(root,h,blk); if(day>=today){ t.plan=day; t.due=day; } });
+  J.days[day]={html:root.innerHTML,updatedAt:Date.now()}; lsSet(LJ,J); jDirty.add(day); jFlushSoon(); commit(); if(jCur===day) jOpen(day); }
+// "Plan" button: puts the headings from Ajustes that are not in the day yet
+function jPlanInsert(){ const L=S.settings.planHeads||[]; if(!L.length){ toast("Aún no tienes títulos. Agrégalos en Ajustes → Bitácora."); $("#openSettings").click(); setSec("jour"); return; }
+  const have=new Set(jHeads(jEd).map(h=>fold(jHText(h)))), miss=L.filter(h=>!have.has(fold(h))); if(!miss.length){ toast("Tu plan ya está en este día."); return; }
+  const sel=getSelection(), at=sel.rangeCount&&jEd.contains(sel.anchorNode)?jTop(sel.anchorNode):null;
+  const tmp=document.createElement("div"); tmp.innerHTML=jPlanHtml(miss); const nodes=[...tmp.children];
+  if(at) at.after(...nodes); else jEd.append(...nodes);
+  jEdited=true; jStore(jCur); jHeadPaint(); jCaretIn(nodes[1]||nodes[0],true); toast(miss.length===1?"Título agregado":`${miss.length} títulos agregados`); }
+$("#jPlanBtn").addEventListener("mousedown",e=>e.preventDefault());
+$("#jPlanBtn").addEventListener("click",()=>{ if(jEd.hidden){ jStart("plan"); return; } jPlanInsert(); });
+// Ajustes → Bitácora: the plan headings
+function planSetRender(){ const L=S.settings.planHeads||[];
+  $("#planList").innerHTML=L.length?L.map((h,i)=>`<div class="planrow"><input type="text" value="${esc(h)}" data-pi="${i}" aria-label="Título ${i+1}" maxlength="60"><button class="icon" type="button" data-pm="up" data-pi="${i}" ${i?"":"disabled"} aria-label="Subir">↑</button><button class="icon" type="button" data-pm="down" data-pi="${i}" ${i<L.length-1?"":"disabled"} aria-label="Bajar">↓</button><button class="icon" type="button" data-pm="del" data-pi="${i}" aria-label="Quitar ${esc(h)}">✕</button></div>`).join("")
+    :`<div class="meta">Sin títulos. Agrega los que usas para ordenar tu día, por ejemplo «Primero» o «Si queda tiempo».</div>`; }
+$("#planList").addEventListener("input",e=>{ const i=e.target.dataset.pi; if(i==null||e.target.tagName!=="INPUT") return; const L=[...(S.settings.planHeads||[])]; L[+i]=e.target.value.replace(/\s+/g," ").trimStart(); S.settings.planHeads=L; lsSet(LS,S); });
+$("#planList").addEventListener("change",e=>{ if(e.target.tagName!=="INPUT") return; S.settings.planHeads=(S.settings.planHeads||[]).map(x=>x.trim()).filter(Boolean); commit(); planSetRender(); });
+$("#planList").addEventListener("click",e=>{ const b=e.target.closest("[data-pm]"); if(!b) return; const i=+b.dataset.pi, L=[...(S.settings.planHeads||[])];
+  if(b.dataset.pm==="del") L.splice(i,1); else { const j=b.dataset.pm==="up"?i-1:i+1; if(j<0||j>=L.length) return; [L[i],L[j]]=[L[j],L[i]]; }
+  S.settings.planHeads=L; commit(); planSetRender(); });
+$("#planAdd").addEventListener("click",()=>{ S.settings.planHeads=[...(S.settings.planHeads||[]),""]; lsSet(LS,S); planSetRender(); const ins=$("#planList").querySelectorAll("input"); ins[ins.length-1].focus(); });
+// ---- repaso rápido: open tasks with no day, one by one -> Hoy, Mañana, Esta semana o Más adelante ----
+const TRI_HEAD="📋 Por ordenar";
+let triQ=[], triI=0, triN={hoy:0,man:0,sem:0,later:0,done:0};
+function triWeek(){ const today=jToday(), dow=new Date(today+"T12:00").getDay(); let d=(5-dow+7)%7; if(d===0) d=7; return jAddDays(today,d); }
+function triList(){ const today=jToday(), cut=Date.now()-14*864e5;
+  return S.tasks.filter(t=>!t.completed&&!t.plan&&!(t.later&&t.later>cut)&&!isProd(t))
+    .sort((a,b)=>{ const la=a.due&&a.due<today?0:1, lb=b.due&&b.due<today?0:1; return (la-lb)||((b.star?1:0)-(a.star?1:0))||((a.createdAt||0)-(b.createdAt||0)); }); }
+function triOpen(){ triQ=triList().map(t=>t.id); triI=0; triN={hoy:0,man:0,sem:0,later:0,done:0}; $("#triDlg").showModal(); triRender(); }
+function triRender(){ const B=$("#triBody"), n=triQ.length; while(triI<n&&!(taskById(triQ[triI])&&!taskById(triQ[triI]).completed)) triI++;
+  $("#triProg").style.width=(n?Math.round(triI/n*100):100)+"%"; $("#triCount").textContent=n&&triI<n?`${triI+1} de ${n}`:"";
+  const today=jToday(), tm=jAddDays(today,1), wk=triWeek();
+  if(!n){ B.innerHTML=`<p>No tienes tareas sin día. Todo tiene su lugar.</p><div class="trialt"><span></span><button class="btn primary" type="button" data-tri="close">Listo</button></div>`; return; }
+  if(triI>=n){ B.innerHTML=`<p style="margin:0 0 4px"><b>¡Listo!</b> Revisaste ${n} tarea${n!==1?"s":""}.</p><div class="trisum"><div><b>${triN.hoy}</b><span>Hoy</span></div><div><b>${triN.man}</b><span>Mañana</span></div><div><b>${triN.sem}</b><span>Esta semana</span></div><div><b>${triN.later}</b><span>Más adelante</span></div></div>${triN.done?`<p class="meta" style="margin:0 0 8px">${triN.done} cerrada${triN.done!==1?"s":""} porque ya estaba${triN.done!==1?"n":""} hecha${triN.done!==1?"s":""}.</p>`:""}<p class="meta" style="margin:0">Quedaron en la Bitácora de cada día bajo «${TRI_HEAD}». Desde ahí las arrastras a tus sublistas.</p><div class="trialt"><button class="btn" type="button" data-tri="close">Cerrar</button><button class="btn primary" type="button" data-tri="jour">Abrir la Bitácora de hoy</button></div>`; return; }
+  const t=taskById(triQ[triI]);
+  B.innerHTML=`<div class="tricard"><div class="tt">${t.star?"★ ":""}${esc(t.title)}</div><div class="mt">${t.tag?`<span class="tag">${esc(t.tag)}</span>`:"<span>Sin proyecto</span>"}<span>${esc((STATUS.find(x=>x[0]===t.status)||["","Por hacer"])[1])}</span>${t.due?`<span class="${t.due<today?"late":""}">${t.due<today?"Atrasada · venció ":"Vence "}${jDM(t.due)}</span>`:""}<span>Creada hace ${pAge(Date.now()-(t.createdAt||Date.now()))}</span></div></div>
+    <div class="trigo"><button type="button" data-tri="hoy"><b>Hoy<kbd>1</kbd></b><small>${esc(jLabel(today).replace("Hoy · ",""))}</small></button><button type="button" data-tri="man"><b>Mañana<kbd>2</kbd></b><small>${esc(jLabel(tm))}</small></button><button type="button" data-tri="sem"><b>Esta semana<kbd>3</kbd></b><small>${esc(jLabel(wk))}</small></button><button type="button" data-tri="later"><b>Más adelante<kbd>4</kbd></b><small>Sin fecha · no vuelve al repaso por 2 semanas</small></button></div>
+    <div class="trialt"><button class="btn sm ghost" type="button" data-tri="done" title="Ya está hecha (H)">✓ Ya está hecha</button><span style="display:flex;gap:8px"><button class="btn sm ghost" type="button" data-tri="skip" title="Decidir otro día (S)">Saltar</button><button class="btn sm" type="button" data-tri="close">Terminar</button></span></div>`; }
+function triDo(a){ const t=taskById(triQ[triI]);
+  if(a==="close"){ $("#triDlg").close(); return; } if(a==="jour"){ $("#triDlg").close(); jShow(jToday()); return; }
+  if(!t||triI>=triQ.length) return; const today=jToday();
+  if(a==="hoy"||a==="man"||a==="sem"){ const d=a==="hoy"?today:a==="man"?jAddDays(today,1):triWeek(); delete t.later; jAddChips(d,[{t,head:TRI_HEAD}]); triN[a]++; }
+  else if(a==="later"){ t.later=Date.now(); commit(); triN.later++; }
+  else if(a==="done"){ setStatus(t,"done"); commit(); triN.done++; }
+  triI++; triRender(); }
+$("#triBody").addEventListener("click",e=>{ const b=e.target.closest("[data-tri]"); if(b) triDo(b.dataset.tri); });
+$("#triDlg").addEventListener("keydown",e=>{ if(e.ctrlKey||e.metaKey||e.altKey||e.target.closest("input,textarea")) return; const k=e.key.toLowerCase(), m={"1":"hoy","2":"man","3":"sem","4":"later",s:"skip",h:"done"}[k]; if(m){ e.preventDefault(); triDo(m); } });
+$("#triClose").addEventListener("click",()=>$("#triDlg").close());
+$("#triDlg").addEventListener("click",e=>{ if(e.target===e.currentTarget) $("#triDlg").close(); });
+$("#triBtn").addEventListener("click",e=>{ e.stopPropagation(); triOpen(); });
+$("#jTriBtn").addEventListener("click",triOpen);
 $("#jCarry").addEventListener("click",e=>{ const b=e.target.closest("[data-jc]"); if(!b) return; if(b.dataset.jc==="go") jCarryGo(); else { lsSet("pp-jcarry",jToday()); jCarryRender(); } });
 
 // ---------- quick finder (Ctrl+K) ----------

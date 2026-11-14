@@ -267,6 +267,40 @@ input[type=date]{background:var(--surface);border:1px solid var(--line);border-r
 .jtagpop.atpop{width:320px}
 .jcarry{display:flex;align-items:center;gap:8px;flex-wrap:wrap;border:1px dashed color-mix(in srgb,var(--accent) 55%,var(--line));background:color-mix(in srgb,var(--accent) 6%,var(--surface));border-radius:10px;padding:8px 10px;margin:0 0 10px;font-size:.88rem}
 .jcarry[hidden]{display:none}
+/* plan sublists: headings count their tasks and can fold; chips move between them */
+.jhc{display:inline-flex;align-items:center;gap:4px;margin-left:10px;font-family:"IBM Plex Sans",system-ui,sans-serif;font-weight:600;font-size:.72rem;line-height:1.5;padding:0 8px;border-radius:999px;background:var(--surface-2);color:var(--ink-2);cursor:pointer;vertical-align:1px;user-select:none;white-space:nowrap}
+.jhc:hover{color:var(--ink);background:color-mix(in srgb,var(--accent) 14%,var(--surface-2))}
+.jhc.all{background:color-mix(in srgb,#2f9e5b 18%,var(--surface-2));color:#24804a}
+.jed .jhid{display:none}
+.jed .jhdrop{outline:2px dashed var(--accent);outline-offset:3px;border-radius:4px}
+.jref[draggable="true"]{cursor:grab}
+.jrefmenu .g{font-size:.68rem;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-3);font-weight:600;padding:6px 8px 2px;border-top:1px solid var(--line);margin-top:3px}
+.planlist{display:grid;gap:6px}
+.planrow{display:flex;gap:6px;align-items:center}
+.planrow input{flex:1;min-width:0}
+.planrow .icon{flex:none}
+/* repaso rápido */
+dialog.tridlg{width:min(560px,calc(100% - 32px));padding:18px 20px 20px}
+.trihead{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.trihead h2{font-family:var(--f-display);font-size:1.15rem;margin:0;flex:1}
+.tribar{height:5px;border-radius:9px;background:var(--surface-2);overflow:hidden;margin-bottom:14px}
+.tribar i{display:block;height:100%;background:var(--accent);transition:width .25s}
+.tricard{border:1px solid var(--line);border-radius:14px;padding:14px 16px;background:var(--surface);margin-bottom:14px}
+.tricard .tt{font-size:1.12rem;font-weight:600;margin-bottom:6px;overflow-wrap:anywhere}
+.tricard .mt{display:flex;gap:6px 12px;flex-wrap:wrap;font-size:.82rem;color:var(--ink-2)}
+.tricard .mt .late{color:var(--danger);font-weight:600}
+.trigo{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.trigo button{display:flex;flex-direction:column;align-items:flex-start;gap:1px;text-align:left;padding:10px 12px;border-radius:12px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font:inherit;cursor:pointer}
+.trigo button:hover{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 6%,var(--surface))}
+.trigo button b{font-size:.95rem}
+.trigo button small{color:var(--ink-2);font-size:.76rem}
+.trigo kbd{font-size:.7rem;margin-left:4px}
+.trialt{display:flex;gap:8px;justify-content:space-between;flex-wrap:wrap;margin-top:12px}
+.trisum{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:6px 0 14px}
+.trisum div{border:1px solid var(--line);border-radius:12px;padding:10px;text-align:center}
+.trisum b{display:block;font-size:1.4rem;font-family:var(--f-display)}
+.trisum span{font-size:.76rem;color:var(--ink-2)}
+@media (max-width:520px){.trigo{grid-template-columns:1fr}.trisum{grid-template-columns:repeat(2,1fr)}}
 .jcarry .tx{flex:1 1 220px;min-width:0}
 .jcarry .tx small{display:block;color:var(--ink-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .toast button{margin-left:10px;border:0;background:none;color:inherit;font:inherit;font-weight:700;text-decoration:underline;cursor:pointer;padding:0}
@@ -711,7 +745,7 @@ dialog#settings{width:min(760px,calc(100% - 32px));padding:0;overflow:hidden}
 .ptabs{display:flex;gap:2px;background:var(--surface-2);border-radius:10px;padding:3px}
 .ptabs button{border:0;background:none;font:inherit;font-family:var(--f-display);font-weight:700;font-size:.95rem;color:var(--ink-2);padding:4px 12px;border-radius:8px;cursor:pointer}
 .ptabs button[aria-selected="true"]{background:var(--surface);color:var(--ink);box-shadow:0 1px 3px rgb(0 0 0/.12)}
-.tasks-panel.jtab .fwrap,.tasks-panel.jtab .tasks-body,.tasks-panel.jtab #kanbanBtn,.tasks-panel.jtab #projBtn{display:none}
+.tasks-panel.jtab .fwrap,.tasks-panel.jtab .tasks-body,.tasks-panel.jtab #kanbanBtn,.tasks-panel.jtab #projBtn,.tasks-panel.jtab #triBtn{display:none}
 .grid.collapsed .journal{display:none}
 .journal{display:flex;flex-direction:column;gap:8px;min-width:0}
 .journal[hidden]{display:none}
