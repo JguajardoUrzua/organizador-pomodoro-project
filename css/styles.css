@@ -136,6 +136,35 @@ textarea{resize:vertical;width:100%}
 .dial svg{width:100%;height:100%;transform:rotate(-90deg)}
 .dial .trk{stroke:var(--surface-2)} .dial .prg{stroke:var(--accent);transition:stroke-dashoffset .4s linear}
 .dial .ticks line{stroke:var(--line)}
+/* clock styles (Ajustes → Apariencia → Reloj): classic, ring (A), disc (B), day line (C) */
+.dial .rdot,.dial .disc,.clkinfo,.clkday{display:none}
+.clkinfo{justify-self:center;margin:2px auto 4px;padding:2px 12px;border-radius:999px;font-size:.85rem;color:var(--ink);background:var(--glass-2);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);border:1px solid var(--glass-line);font-variant-numeric:tabular-nums;white-space:nowrap}
+.clkinfo b{font-family:var(--f-mono);font-weight:500}
+body.clk-ring .clkinfo,body.clk-disc .clkinfo,body.clk-day .clkinfo{display:block}
+body.clk-ring .dial .ticks{display:none}
+body.clk-ring .dial .trk{stroke:#f7b267;stroke-opacity:.5;stroke-width:10}
+body.clk-ring .dial .prg{stroke-width:10;transition:none}
+body.clk-ring .dial .rdot{display:block;fill:#fff;filter:drop-shadow(0 1px 3px rgb(0 0 0/.35))}
+body.clk-disc .dial,body.clk-day .dial{aspect-ratio:auto}
+body.clk-disc .dial .dsvg,body.clk-day .dial .dsvg{display:none}
+body.clk-disc .readout,body.clk-day .readout{position:static;margin-top:10px}
+body.clk-disc .dial .disc{display:block;width:min(330px,82%);height:auto;margin:0 auto;transform:none;filter:drop-shadow(0 8px 24px rgb(0 0 0/.25))}
+.disc .face{fill:rgb(255 255 255/.94)}
+.disc .tk{stroke:#1b1d29}
+.disc .wedge{fill:var(--accent)}
+.disc .hand{stroke:#1b1d29;stroke-linecap:round}
+.disc .hub{fill:#1b1d29}
+body.clk-disc .time{font-size:clamp(2.4rem,8vw,3.4rem)}
+body.clk-day .readout{display:flex;flex-direction:column;align-items:center}
+body.clk-day .clkday{display:block;width:100%;max-width:470px;margin:10px auto 6px}
+.clkday .tl{position:relative;height:44px;border-radius:10px;background:var(--glass-2);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);border:1px solid var(--glass-line);overflow:hidden}
+.clkday .blk{position:absolute;top:8px;bottom:8px;border-radius:5px;min-width:2px}
+.clkday .f{background:color-mix(in srgb,var(--ink) 70%,transparent)}
+.clkday .b{background:#f7b267;opacity:.8}
+.clkday .c{background:var(--accent)}
+.clkday .p{background:var(--accent);opacity:.25}
+.clkday .nw{position:absolute;top:0;bottom:0;width:2px;background:var(--ink)}
+.clkday .hh{display:flex;justify-content:space-between;font:500 .68rem var(--f-mono);color:#fff;opacity:.9;margin-top:4px;text-shadow:0 1px 4px rgb(0 0 0/.35)}
 .readout{position:absolute;inset:0;display:grid;place-content:center;text-align:center;gap:2px}
 .time{font-family:var(--f-mono);font-weight:500;font-size:clamp(3rem,12vw,5.6rem);letter-spacing:-.02em;font-variant-numeric:tabular-nums}
 .sub{color:var(--ink);font-size:1rem;max-width:240px;margin:4px auto 0;padding:3px 12px;border-radius:12px;background:var(--glass-2);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);border:1px solid var(--glass-line);overflow-wrap:anywhere;line-height:1.3}

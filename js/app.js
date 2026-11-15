@@ -95,7 +95,7 @@ function tick(){
   const ms=left(); if(T.running&&ms<=0){ finish(false); return; }
   const s=Math.ceil(ms/1000), txt=String(Math.floor(s/60)).padStart(2,"0")+":"+String(s%60).padStart(2,"0");
   $("#time").textContent=txt;
-  const frac=1-ms/durMs(T.mode); $("#prg").style.strokeDashoffset=C*(1-Math.min(1,Math.max(0,frac)));
+  const frac=1-ms/durMs(T.mode); clkPaint(ms,frac);
   document.body.dataset.mode=T.mode; document.body.classList.toggle("focusing",!!(T.running&&T.mode==="focus"&&S.settings.focusMode!==false));
   document.querySelectorAll(".modes button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.mode===T.mode));
   $("#toggle").textContent=T.running?"Pausar":(ms<durMs(T.mode)?"Continuar":"Iniciar");
@@ -116,6 +116,33 @@ function tick(){
   if(typeof syncAmbient==="function") syncAmbient();
   if(T.track){ const t=taskById(T.track.id); if(t){ const v=clock(liveSpent(t)); document.querySelectorAll(`[data-spent="${t.id}"]`).forEach(el=>el.textContent=v); } }
 }
+// clock styles: classic dial, Focus ring (remaining arc + dot), time disc (shrinking wedge + real-time hands), day line
+const clkHM=d=>String(d.getHours()).padStart(2,"0")+":"+String(d.getMinutes()).padStart(2,"0");
+(()=>{ let g=""; for(let i=0;i<60;i++){ const a=i*6*Math.PI/180, r1=i%5?106:98; g+=`<line class="tk" x1="${125+Math.sin(a)*r1}" y1="${125-Math.cos(a)*r1}" x2="${125+Math.sin(a)*112}" y2="${125-Math.cos(a)*112}" stroke-opacity="${i%5?.25:.65}" stroke-width="${i%5?1:2.2}"/>`; } $("#discTicks").innerHTML=g; })();
+function clkPaint(ms,frac){ const ck=document.body.classList.contains("clk-ring")?"ring":document.body.classList.contains("clk-disc")?"disc":document.body.classList.contains("clk-day")?"day":"classic";
+  const f=Math.min(1,Math.max(0,frac)), p=$("#prg");
+  if(ck==="ring"){ p.style.strokeDasharray=`${C*(1-f)} ${C}`; p.style.strokeDashoffset=0; p.setAttribute("transform",`rotate(${360*f} 100 100)`);
+    const a=2*Math.PI*f; $("#rdot").setAttribute("cx",100+88*Math.cos(a)); $("#rdot").setAttribute("cy",100+88*Math.sin(a)); }
+  else { if(p.getAttribute("transform")) p.removeAttribute("transform"); p.style.strokeDasharray=C; p.style.strokeDashoffset=C*(1-f); }
+  if(ck==="classic") return;
+  const now=new Date(), end=new Date(Date.now()+ms), mode=T.mode==="focus"?"":"la pausa ";
+  const n=S.log.filter(e=>e.k==="focus"&&!e.partial&&dayKey(e.t)===dayKey(Date.now())).length;
+  const info=(ck==="day"&&T.mode==="focus"?`Pomodoro ${n+1} de ${S.settings.goal||8} · `:"")+`Son las <b>${clkHM(now)}</b> · ${mode}${T.running?"termina":"terminaría"} <b>${clkHM(end)}</b>`;
+  if($("#clkInfo").innerHTML!==info) $("#clkInfo").innerHTML=info;
+  if(ck==="disc"){ const rem=Math.min(60,ms/60000), ea=-rem*6*Math.PI/180, R=104, x=125+R*Math.sin(ea), y=125-R*Math.cos(ea);
+    $("#discWedge").setAttribute("d",rem<=0.01?"":rem>=59.99?`M125 ${125-R} A${R} ${R} 0 1 0 ${125-0.01} ${125-R} Z`:`M125 125 L125 ${125-R} A${R} ${R} 0 ${rem>30?1:0} 0 ${x} ${y} Z`);
+    const hh=now.getHours()%12+now.getMinutes()/60, mm=now.getMinutes()+now.getSeconds()/60, ha=hh*30*Math.PI/180, ma=mm*6*Math.PI/180;
+    $("#discH").setAttribute("x2",125+50*Math.sin(ha)); $("#discH").setAttribute("y2",125-50*Math.cos(ha)); $("#discM").setAttribute("x2",125+82*Math.sin(ma)); $("#discM").setAttribute("y2",125-82*Math.cos(ma)); }
+  if(ck==="day"){ const t0=new Date(Date.now()-3*36e5), t1=new Date(Date.now()+2*36e5); t0.setMinutes(0,0,0); t1.setMinutes(0,0,0);
+    const span=t1-t0, P=v=>Math.max(0,Math.min(100,(v-t0)/span*100)), W=(a,b)=>Math.max(0,P(b)-P(a));
+    let h=""; S.log.filter(e=>(e.k==="focus"||e.k==="short"||e.k==="long")&&e.t>t0.getTime()&&e.min).forEach(e=>{ const a=e.t-e.min*6e4; h+=`<div class="blk ${e.k==="focus"?"f":"b"}" style="left:${P(a)}%;width:${W(a,e.t)}%"></div>`; });
+    const dur=durMs(T.mode), st=Date.now()-(dur-ms);
+    if(T.running||ms<dur) h+=`<div class="blk ${T.mode==="focus"?"c":"b"}" style="left:${P(st)}%;width:${W(st,Date.now())}%"></div>`;
+    h+=`<div class="blk p" style="left:${P(Date.now())}%;width:${W(Date.now(),Date.now()+ms)}%"></div><div class="nw" style="left:${P(Date.now())}%"></div>`;
+    const L=[]; for(let x=t0.getTime();x<=t1.getTime();x+=36e5) L.push(clkHM(new Date(x)));
+    const html=`<div class="tl" title="Tu día: pomodoros, pausas y la hora actual">${h}</div><div class="hh">${L.map(x=>`<span>${x}</span>`).join("")}</div>`;
+    if($("#clkDay").innerHTML!==html) $("#clkDay").innerHTML=html; } }
+setInterval(()=>{ if(!T.running&&!document.body.classList.contains("clk-classic")) tick(); },15000);
 const clock = ms => { const s=Math.floor(ms/1000), h=Math.floor(s/3600), m=Math.floor(s/60)%60, ss=s%60;
   return (h?h+":"+String(m).padStart(2,"0"):String(m).padStart(2,"0"))+":"+String(ss).padStart(2,"0"); };
 setInterval(()=>{ if(T.running) tick(); },250);
@@ -759,7 +786,10 @@ function applyLook(){ if(HOST_THEME===undefined) return; const st=S.settings, th
   const foPos=st.foPos==="below"?"below":"side"; document.body.classList.toggle("fo-side",foPos==="side");
   document.querySelectorAll("[data-fopos]").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.fopos===foPos)));
   document.querySelectorAll("[data-theme-opt]").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.themeOpt===th)));
+  const ck=["ring","disc","day"].includes(st.clock)?st.clock:"classic"; ["ring","disc","day"].forEach(k=>document.body.classList.toggle("clk-"+k,ck===k));
+  document.querySelectorAll("[data-clk]").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.clk===ck)));
   document.querySelectorAll("[data-lay-opt]").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.layOpt===(st.layout==="below"?"below":"side")))); }
+$("#clkSeg").addEventListener("click",e=>{ const b=e.target.closest("[data-clk]"); if(!b) return; S.settings.clock=b.dataset.clk; applyLook(); commit(); tick(); });
 $("#foPosSeg").addEventListener("click",e=>{ const b=e.target.closest("[data-fopos]"); if(!b) return; S.settings.foPos=b.dataset.fopos; applyLook(); commit(); });
 $("#themeSeg").addEventListener("click",e=>{ const b=e.target.closest("[data-theme-opt]"); if(!b) return; S.settings.theme=b.dataset.themeOpt; applyLook(); commit(); });
 $("#laySeg").addEventListener("click",e=>{ const b=e.target.closest("[data-lay-opt]"); if(!b) return; S.settings.layout=b.dataset.layOpt; applyLook(); commit(); });
