@@ -583,6 +583,9 @@ dialog.weekdlg[open]{display:flex}
 .ncheck{width:16px;height:16px;margin-top:2px;border-radius:4px;border:1.5px solid var(--ink-3);background:transparent;padding:0}
 .ncheck:hover{border-color:var(--short);background:color-mix(in srgb,var(--short) 18%,transparent)}
 .donehead{display:flex;justify-content:space-between;align-items:center;padding:10px 2px 0;border-top:1px dashed var(--line);margin-top:6px}
+.donehead .r{display:flex;align-items:center;gap:8px}
+.archfoot{display:flex;justify-content:center;padding:8px 2px 2px}
+.note.arch{opacity:.75}
 .note.done{background:transparent;border-color:transparent;padding:4px 8px;opacity:.72}
 .note.done:hover,.note.done:focus-within{opacity:.9}
 .note.done .ntext{font-size:.82rem;text-decoration:line-through;color:var(--ink-2);overflow-wrap:anywhere;white-space:pre-wrap}
