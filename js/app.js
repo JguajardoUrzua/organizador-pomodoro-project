@@ -2637,3 +2637,18 @@ if("serviceWorker" in navigator&&(location.protocol==="https:"||location.hostnam
     const had=!!navigator.serviceWorker.controller; let done=false;
     navigator.serviceWorker.addEventListener("controllerchange",()=>{ if(had&&!done){ done=true; location.reload(); } });
     navigator.serviceWorker.register("sw.js",{updateViaCache:"none"}).then(r=>r.update()).catch(()=>{}); });
+
+/* rediseño: la barra lateral acciona los mismos botones de siempre */
+(()=>{
+  const q=s=>document.querySelector(s), rail=q("#rail");
+  rail.addEventListener("click",e=>{ const b=e.target.closest("button"); if(!b) return;
+    if(b.dataset.go){ const t=document.getElementById(b.dataset.go); if(t) t.click(); }
+    else if("foco" in b.dataset){ const t=q('#foco [data-fo="view"]'); if(t) t.click(); } });
+  rail.querySelectorAll("button[data-go]").forEach(b=>{ const t=document.getElementById(b.dataset.go); if(!t||!/^[tj]HeadBtn$/.test(t.id)) return;
+    const up=()=>b.setAttribute("aria-pressed",t.getAttribute("aria-pressed")==="true"); new MutationObserver(up).observe(t,{attributes:true,attributeFilter:["aria-pressed"]}); up(); });
+  const tg=q("#toggle"), run=()=>document.body.classList.toggle("running",tg.textContent.trim()==="Pausar");
+  new MutationObserver(run).observe(tg,{childList:true,characterData:true,subtree:true}); run();
+  const sy=q("#sync"), rs=q("#rlSync"), syn=()=>{ const t=sy.textContent.trim(); rs.title=t; rs.setAttribute("aria-label",t||"Estado de guardado");
+    rs.dataset.st=/error|no se pudo|fall|sin conexi/i.test(t)?"err":/ando\b|…|\.\.\./i.test(t)?"wait":"ok"; };
+  new MutationObserver(syn).observe(sy,{childList:true,characterData:true,subtree:true}); syn();
+})();
