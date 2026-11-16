@@ -14,7 +14,7 @@
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400..700&family=JetBrains+Mono:wght@300..600&display=swap">
-<link rel="stylesheet" href="css/styles.css?v=v46">
+<link rel="stylesheet" href="css/styles.css?v=v49">
 </head>
 <body>
 <canvas id="scene" aria-hidden="true"></canvas>
@@ -328,6 +328,7 @@
       <section class="setsec" id="set-proj" role="tabpanel" aria-labelledby="setTab-proj" hidden>
         <h3>Proyectos</h3><p class="meta setdesc">Marca como Producción los proyectos de soporte. Sus casos aparecen en la franja de Producción sobre tus tareas, con prioridad (P1 a P4), origen y N° de ticket, y se atienden en modo incidente. Se aplica al momento.</p>
         <div class="projlist" id="projList"></div>
+        <label class="chk"><input type="checkbox" id="cProdHide"> No repetir sus tareas en la lista de tareas (★ Hoy, Atrasadas, Pendientes…): ya están en la franja de Producción. Siguen apareciendo en Cerradas, en Todas y al elegir ese proyecto.</label>
       </section>
       <section class="setsec" id="set-jour" role="tabpanel" aria-labelledby="setTab-jour" hidden>
         <h3>Bitácora</h3><p class="meta setdesc">Los títulos de tu plan. El botón «Plan» de la Bitácora los pone en el día, y al empezar un día nuevo te pregunta si quieres usarlos. Bajo cada título traes tareas con @. Se aplica al momento.</p>
@@ -422,6 +423,6 @@
 </dialog>
 <div class="albar" id="alBar" role="alert" hidden></div>
 <div class="toast" id="toast" hidden></div>
-<script src="js/app.js?v=v46"></script>
+<script src="js/app.js?v=v49"></script>
 </body>
 </html>

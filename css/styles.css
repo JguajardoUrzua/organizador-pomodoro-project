@@ -457,6 +457,8 @@ li.task.prod{box-shadow:inset 3px 0 0 var(--prod)}
 .incbar .btn{background:#fff;color:var(--prod);border-color:#fff;font-weight:600}
 .incbar .btn.ghost{background:transparent;color:#fff;border-color:rgb(255 255 255/.65)}
 .projlist{display:grid;gap:6px}
+.list li.phid{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:center;padding:6px 10px;border:1px dashed var(--line);border-radius:10px;font-size:.8rem;color:var(--muted);background:transparent}
+.list li.phid .pdot{width:7px;height:7px}
 .projrow{display:flex;align-items:center;gap:10px;padding:7px 10px;border:1px solid var(--line);border-radius:10px;background:var(--surface);cursor:pointer}
 .projrow .n{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .projrow .k{font-size:.72rem;padding:1px 8px;border-radius:999px;background:var(--surface-2);color:var(--ink-2);white-space:nowrap}

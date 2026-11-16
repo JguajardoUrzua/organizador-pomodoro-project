@@ -287,6 +287,8 @@ var PRIO=["P1","P2","P3","P4"], SRC={ticket:"Ticket",teams:"Teams",correo:"Corre
 function pkey(x){ return String(x||"").normalize("NFD").replace(/[̀-ͯ]/g,"").toLowerCase().replace(/\s+/g," ").trim(); }
 function isProdTag(tag){ return !!tag&&(S.settings.prodTags||[]).includes(pkey(tag)); }
 function isProd(t){ return !!t&&isProdTag(t.tag); }
+// Producción cases already live in their own strip: keep them out of the task list unless asked (Cerradas/Todas or that project picked)
+function prodHid(t){ return S.settings.prodHide!==false&&isProd(t)&&filter!=="done"&&filter!=="all"&&!(tagF&&isProdTag(tagF)); }
 function prodNames(){ const m=new Map(); S.tasks.forEach(t=>{ if(isProdTag(t.tag)&&!m.has(pkey(t.tag))) m.set(pkey(t.tag),t.tag); }); return [...m.values()]; }
 function pAge(ms){ const m=Math.max(0,Math.floor(ms/6e4)); if(m<60) return m+" min"; const h=Math.floor(m/60); if(h<24) return h+" h"+(h<5&&m%60?" "+(m%60)+" min":""); return Math.floor(h/24)+" d"; }
 function pLate(t){ return Date.now()-(t.createdAt||Date.now())>PSLA[t.prio||"P3"]; }
@@ -413,14 +415,15 @@ function render(){ applyLook(); incCheck(); prodRender(); incRender(); projStrip
     if(k!==tagKey){ tagKey=k; sel.innerHTML=`<option value="">Todos los proyectos</option>`+tags.map(t=>`<option value="${esc(t)}">${esc(t)}</option>`).join(""); }
     sel.value=tagF||""; sel.classList.toggle("on",!!tagF); sel.hidden=!tags.length; }
   document.querySelectorAll("[data-f]").forEach(b=>b.setAttribute("aria-pressed",b.dataset.f===filter));
-  { const sc=S.tasks.filter(t=>t.star&&!t.completed).length; $("#starCnt").textContent=sc?String(sc):""; }
+  { const sc=S.tasks.filter(t=>t.star&&!t.completed&&!prodHid(t)).length; $("#starCnt").textContent=sc?String(sc):""; }
   { const ic=S.tasks.filter(t=>t.status==="inbox"&&!t.completed).length; $("#inboxCnt").textContent=ic?String(ic):"";
     const HID={inbox:"Sin asignar",doing:"En curso",paused:"En pausa",backlog:"Backlog",done:"Cerradas",all:"Todas"};
     $("#fMoreLbl").textContent=HID[filter]||"Más"; $("#fMore").setAttribute("aria-pressed",String(!!HID[filter]));
     $("#fMoreCnt").textContent=ic&&filter!=="inbox"?String(ic):""; $("#fMore").title=ic&&filter!=="inbox"?`Más filtros · ${ic} sin asignar`:"Más filtros"; }
-  { const lc=S.tasks.filter(isLate).length; $("#lateCnt").textContent=lc?String(lc):""; $("#lateChip").hidden=!lc&&filter!=="late"; }
+  { const lc=S.tasks.filter(t=>isLate(t)&&!prodHid(t)).length; $("#lateCnt").textContent=lc?String(lc):""; $("#lateChip").hidden=!lc&&filter!=="late"; }
   let list=S.tasks.filter(t=>filter==="all"||(filter==="late"?isLate(t):filter==="done"?t.completed:filter==="star"?!t.completed&&t.star:filter==="doing"?!t.completed&&t.status==="doing":filter==="paused"?!t.completed&&t.status==="paused":filter==="backlog"?!t.completed&&t.status==="backlog":filter==="inbox"?!t.completed&&t.status==="inbox":!t.completed&&(t.status==="todo"||t.status==="review"||!t.status)));
   if(tagF) list=list.filter(t=>t.tag===tagF);
+  let pHidN=0, pShowN=0; { const n=list.length; list=list.filter(t=>!prodHid(t)); pHidN=n-list.length; if(S.settings.prodHide===false&&filter!=="done"&&filter!=="all"&&!(tagF&&isProdTag(tagF))) pShowN=list.filter(isProd).length; }
   const qn=fold(tq.trim()), qw=qn?qn.split(/\s+/):[];
   if(qw.length){ const nt={}; S.notes.forEach(n=>{ if(n.task) nt[n.task]=(nt[n.task]||"")+" "+n.text; });
     list=list.filter(t=>{ const h=fold([t.title,t.tag,(t.todos||[]).map(x=>x.text).join(" "),(t.links||[]).map(x=>x.name).join(" "),nt[t.id]||""].join(" ")); return qw.every(w=>h.includes(w)); }); }
@@ -479,6 +482,7 @@ function render(){ applyLook(); incCheck(); prodRender(); incRender(); projStrip
         <div class="r"><label class="pub"><input type="checkbox" id="qnote-pub" ${lsGet("pp-qpub")===false?"":"checked"}> Publicar en Notas</label><span style="flex:1"></span><button class="btn sm" type="button" data-act="qnote-new-cancel">Cancelar</button><button class="btn sm primary" type="button" data-act="qnote-save">Guardar nota</button></div>`
         :`<div class="r"><button class="btn sm primary" type="button" data-act="qnote-new">+ Nueva nota</button><span style="flex:1"></span><button class="btn sm" type="button" data-act="qnote-cancel">Cerrar</button></div>`}</div>`:""}</li>`}).join("")
     : `<li class="empty">${tq.trim()?`Ninguna tarea coincide con «${esc(tq.trim())}».`:filter==="late"?"Nada atrasado: no hay tareas vencidas ni que venzan hoy.":filter==="star"?"Aún no marcas tareas para hoy. Toca la ☆ junto al nombre de una tarea para agregarla.":filter==="doing"?"No hay tareas en curso.":filter==="paused"?"No hay tareas en pausa.":filter==="backlog"?"No hay tareas en backlog.":filter==="inbox"?"No hay tareas sin asignar. Usa ⚡ Ingreso rápido para anotar varias de una vez.":filter==="done"?"Aún no hay tareas terminadas.":"Pulsa «+ Nueva tarea» para agregar la primera y luego Iniciar para contar su tiempo."}</li>`;
+  if(!editingNow&&!dragTodo&&(pHidN||pShowN)) $("#tasks").insertAdjacentHTML("beforeend",pHidN?`<li class="phid"><span class="pdot"></span>${pHidN} de Producción ${pHidN>1?"están":"está"} en su franja, arriba<button class="nlink" type="button" data-ph="show">Mostrar aquí también</button></li>`:`<li class="phid"><span class="pdot"></span>${pShowN} de Producción ${pShowN>1?"aparecen":"aparece"} también aquí<button class="nlink" type="button" data-ph="hide">Ocultar de la lista</button></li>`);
   const open=S.tasks.filter(t=>!t.completed); $("#pendCount").textContent=open.length; $("#pendCount").hidden=!open.length;
   const doneToday=S.tasks.filter(t=>t.completed&&t.completedAt&&dayKey(t.completedAt)===dayKey(Date.now())).length;
   $("#taskSum").innerHTML=open.length||doneToday?`<span>${open.length} abierta${open.length!==1?"s":""}</span>${doneToday?`<span>· ${doneToday} cerrada${doneToday!==1?"s":""} hoy</span>`:""}`:"";
@@ -667,7 +671,7 @@ $("#tasks").addEventListener("keydown",e=>{ if(e.target.id!=="br-q") return; e.s
   else if(e.key==="Enter"){ e.preventDefault(); const f=$("#br-res .brpick"); f&&f.click(); } },true);
 $("#tasks").addEventListener("keydown",e=>{ if(!e.target.closest(".tladd")) return; const t=taskById(e.target.closest(".task").dataset.id);
   if(e.key==="Enter"){ e.preventDefault(); t&&linkSave(t); } else if(e.key==="Escape"){ e.preventDefault(); linkAdd=null; render(); } });
-$("#tasks").addEventListener("click",e=>{
+$("#tasks").addEventListener("click",e=>{ const ph=e.target.closest("[data-ph]"); if(ph){ S.settings.prodHide=ph.dataset.ph==="hide"; commit(); toast(S.settings.prodHide?"Las tareas de Producción ya no se repiten en la lista":"Las tareas de Producción también se muestran en la lista"); return; }
   const b=e.target.closest("[data-act]"); if(!b) return; const id=b.closest(".task").dataset.id, t=S.tasks.find(x=>x.id===id); if(!t) return;
   const a=b.dataset.act;
   if(a==="todo-toggle"){ t.todoMin=!t.todoMin; if(t.todoMin&&todoAdd===id) todoAdd=null; commit(); return; }
@@ -866,7 +870,7 @@ $("#setNav").addEventListener("keydown",e=>{ const k=e.key; if(!["ArrowDown","Ar
 $("#setClose").addEventListener("click",()=>dlg.close("cancel"));
 $("#openSettings").addEventListener("click",()=>{ const s=S.settings;
   $("#cFocus").value=s.focus;$("#cShort").value=s.short;$("#cLong").value=s.long;$("#cEvery").value=s.longEvery;$("#cGoal").value=s.goal;
-  $("#cAutoB").checked=s.autoBreaks;$("#cAutoF").checked=s.autoFocus;$("#cSound").checked=s.sound;$("#cFocusMode").checked=s.focusMode!==false; $("#cAlSound").checked=s.alertSound!==false; alPermUI(); renderBgPick(); projSetRender(); planSetRender(); setSec(lsGet("pp-setsec")||"timer"); dlg.returnValue=""; dlg.showModal(); });
+  $("#cAutoB").checked=s.autoBreaks;$("#cAutoF").checked=s.autoFocus;$("#cSound").checked=s.sound;$("#cFocusMode").checked=s.focusMode!==false; $("#cAlSound").checked=s.alertSound!==false; $("#cProdHide").checked=s.prodHide!==false; alPermUI(); renderBgPick(); projSetRender(); planSetRender(); setSec(lsGet("pp-setsec")||"timer"); dlg.returnValue=""; dlg.showModal(); });
 dlg.addEventListener("close",()=>{ if(dlg.returnValue!=="ok") return;
   const n=(id,min,max,d)=>{const v=Math.round(+$(id).value);return v>=min&&v<=max?v:d};
   const s=S.settings, old={...s};
@@ -2605,6 +2609,7 @@ function alPermUI(){ const info=$("#ntfInfo"), ask=$("#ntfAsk"); if(!info) retur
     :"Aún no activadas. Actívalas para ver el aviso aunque la ventana esté minimizada.";
   ask.hidden=p!=="default"; }
 $("#ntfAsk").addEventListener("click",()=>{ alAskPerm(); });
+$("#cProdHide").addEventListener("change",()=>{ S.settings.prodHide=$("#cProdHide").checked; commit(); });
 $("#cAlSound").addEventListener("change",()=>{ S.settings.alertSound=$("#cAlSound").checked; commit(); });
 $("#ntfTest").addEventListener("click",()=>{ alSound(); const t={id:"test",title:"Alerta de prueba",tag:"",alert:Date.now()}; alNotify(t); toast(alNtfOn()?"Así se ve y suena una alerta":"Así suena una alerta. Las notificaciones del sistema no están activas."); });
 addEventListener("focus",()=>{ alCheck(); if(alBlinkT) alBlink(false); });
@@ -2728,14 +2733,6 @@ function addTicketTask(x){
 render();
 })();
 
-// ---------- offline app (service worker) ----------
-if("serviceWorker" in navigator&&(location.protocol==="https:"||location.hostname==="localhost"||location.hostname==="127.0.0.1"))
-  addEventListener("load",()=>{
-    // when a new version takes over, reload once so the new files are used right away
-    const had=!!navigator.serviceWorker.controller; let done=false;
-    navigator.serviceWorker.addEventListener("controllerchange",()=>{ if(had&&!done){ done=true; location.reload(); } });
-    navigator.serviceWorker.register("sw.js",{updateViaCache:"none"}).then(r=>r.update()).catch(()=>{}); });
-
 /* rediseño: la barra lateral acciona los mismos botones de siempre */
 (()=>{
   const q=s=>document.querySelector(s), rail=q("#rail");
@@ -2750,3 +2747,11 @@ if("serviceWorker" in navigator&&(location.protocol==="https:"||location.hostnam
     rs.dataset.st=/error|no se pudo|fall|sin conexi/i.test(t)?"err":/ando\b|…|\.\.\./i.test(t)?"wait":"ok"; };
   new MutationObserver(syn).observe(sy,{childList:true,characterData:true,subtree:true}); syn();
 })();
+
+// ---------- offline app (service worker) ----------
+if("serviceWorker" in navigator&&(location.protocol==="https:"||location.hostname==="localhost"||location.hostname==="127.0.0.1"))
+  addEventListener("load",()=>{
+    // when a new version takes over, reload once so the new files are used right away
+    const had=!!navigator.serviceWorker.controller; let done=false;
+    navigator.serviceWorker.addEventListener("controllerchange",()=>{ if(had&&!done){ done=true; location.reload(); } });
+    navigator.serviceWorker.register("sw.js",{updateViaCache:"none"}).then(r=>r.update()).catch(()=>{}); });
