@@ -2526,9 +2526,14 @@ function focoRender(){ const el=$("#foco"); if(!el) return; const f=focoIds(), v
     h+=`<div class="foslot ${i===0?"fonow":""}" data-id="${t.id}"><div class="fotop"><span class="fon">${i+1}</span><div class="fob"><div class="fol">${FOCO_LB[i]}${trk?" · en curso":i===0&&S.incident&&S.incident.prev===t.id?" · en pausa por incidente":""}</div><button class="fott" type="button" data-fo="go" title="Abrir la tarea">${esc(t.title)}</button><div class="fom">${t.tag?esc(t.tag):""}${du?`${t.tag?" · ":""}<span class="due ${du.cls}">${du.txt}</span>`:""}</div></div>
       <span class="foa">${i===0?`<button class="icon fplay" type="button" data-fo="track" title="${trk?"Detener":"Iniciar"}" aria-label="${trk?"Detener":"Iniciar"}">${trk?ICON_STOP:ICON_PLAY}</button><button class="icon" type="button" data-fo="done" title="Cerrar la tarea: sube la siguiente" aria-label="Cerrar la tarea">${ic("check")}</button>`:`<button class="icon" type="button" data-fo="top" title="Pasar a Ahora" aria-label="Pasar a Ahora">${ic("up")}</button>`}<button class="icon" type="button" data-fo="out" title="Sacar de Foco (sigue en tu lista)" aria-label="Sacar de Foco">${ic("x")}</button></span></div>
       ${i>0&&todos.length?`<ul class="fotd">${todos.slice(0,3).map(x=>`<li>${esc(x.text)}</li>`).join("")}${todos.length>3?`<li class="more">y ${todos.length-3} más</li>`:""}</ul>`:""}
-      <input class="foidea" type="text" placeholder="Anotar idea para esta tarea… (Enter)" aria-label="Idea para ${esc(t.title)}"></div>`; }
+      <input class="foidea" type="text" placeholder="Anotar idea… (Enter)" aria-label="Idea para ${esc(t.title)}"></div>`; }
   const ae=document.activeElement; if(ae&&ae.classList&&ae.classList.contains("foidea")&&el.contains(ae)&&ae.value) return; // keep a half-typed idea
-  if(el.dataset.h!==h){ el.dataset.h=h; el.innerHTML=h; } }
+  if(el.dataset.h!==h){ el.dataset.h=h; el.innerHTML=h; } focoLay(); }
+// cards in a row when there is room: A (three) with the panels below the clock, B (Ahora + two) with them beside it; a column on phones and beside the clock in vista Foco
+function focoLay(){ const el=$("#foco"); if(!el) return; const w=innerWidth, b=document.body.classList; let m="";
+  if(w>=600) m=b.contains("focoview")?(b.contains("fo-side")&&w>=760?"":"fA"):(w>=1100&&!b.contains("lay-below")?"fB":"fA");
+  el.classList.toggle("fA",m==="fA"); el.classList.toggle("fB",m==="fB"); }
+addEventListener("resize",()=>focoLay());
 function focoView(on){ document.body.classList.toggle("focoview",on); lsSet("pp-focoview",on);
   if(on){ if($("#journal").classList.contains("side")) jSideClose(); tSideClose(); window.scrollTo({top:0}); }
   const d=$("#foco"); d.dataset.h=""; focoRender(); }
