@@ -575,6 +575,16 @@ dialog.weekdlg[open]{display:flex}
 .tladd{display:flex;flex-wrap:wrap;gap:6px;width:100%}
 .tladd input{flex:1 1 180px;min-width:0;font:inherit;font-size:.85rem;padding:5px 8px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--ink)}
 .tladd #tl-name{flex:0 1 160px}
+/* Páginas de Brain referenciadas en una tarea */
+.tlink.brain{border-color:color-mix(in srgb,var(--long) 45%,var(--line))}
+.tlink.gone a{color:var(--ink-3);text-decoration:line-through}
+.bradd .brres{flex:1 1 100%;display:flex;flex-direction:column;gap:2px;max-height:260px;overflow:auto;border:1px solid var(--line);border-radius:8px;background:var(--surface);padding:4px}
+.brmsg{margin:0;padding:6px 8px;font-size:.8rem;color:var(--ink-3)}
+.brpick{display:grid;grid-template-columns:auto 1fr;column-gap:8px;align-items:center;text-align:left;border:0;background:none;color:var(--ink);font:inherit;font-size:.85rem;padding:6px 8px;border-radius:6px;cursor:pointer}
+.brpick:hover,.brpick:focus-visible{background:color-mix(in srgb,var(--long) 14%,transparent);outline:none}
+.brpick .bri{font-size:1rem;line-height:1}
+.brpick .brt{font-weight:600;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.brpick .brs{grid-column:2;font-size:.75rem;color:var(--ink-3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .taladd{grid-column:2/-1;display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-top:4px}
 .taladd input{flex:0 1 210px;min-width:0;font:inherit;font-size:.85rem;padding:5px 8px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--ink)}
 .taladd .lb{font-size:.76rem;color:var(--ink-3);display:inline-flex;align-items:center;gap:4px}
