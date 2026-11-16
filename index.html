@@ -14,7 +14,7 @@
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400..700&family=JetBrains+Mono:wght@300..600&display=swap">
-<link rel="stylesheet" href="css/styles.css?v=v45">
+<link rel="stylesheet" href="css/styles.css?v=v46">
 </head>
 <body>
 <canvas id="scene" aria-hidden="true"></canvas>
@@ -316,6 +316,7 @@
     <div class="setopt"><div class="setlbl">Ubicación del panel de Foco</div><div class="seg" id="foPosSeg" role="group" aria-label="Ubicación del panel de Foco"><button type="button" data-fopos="side" data-ic="cols">Al lado del reloj</button><button type="button" data-fopos="below" data-ic="rows">Debajo del reloj</button></div><div class="meta">Dónde van las tarjetas Ahora, Siguiente y Después en la vista Foco (tecla F). Al lado se usa en pantallas de 760 px de ancho o más; en las más angostas van siempre debajo.</div></div>
     <div class="setopt"><div class="setlbl">Reloj</div><div class="seg" id="clkSeg" role="group" aria-label="Estilo del reloj"><button type="button" data-clk="classic" data-ic="timer">Clásico</button><button type="button" data-clk="ring" data-ic="circle">Anillo</button><button type="button" data-clk="disc" data-ic="target">Disco</button><button type="button" data-clk="day" data-ic="rows">Línea del día</button></div></div>
     <div><div class="setlbl">Fondo</div><div class="bgpick" id="bgPick"></div></div>
+    <div class="setopt"><div class="setlbl">Opacidad de los paneles</div><div class="seg" id="panSeg" role="group" aria-label="Opacidad de los paneles"><button type="button" data-pan="solid">Opacos</button><button type="button" data-pan="mid">Medios</button><button type="button" data-pan="glass">Translúcidos</button></div><div class="meta">Cuánto se ve el fondo a través de los paneles. Opacos se lee mejor; Translúcidos deja ver más la imagen.</div></div>
     <label class="chk"><input type="checkbox" id="cFocusMode"> Modo enfoque: atenuar todo menos el reloj mientras corre un pomodoro</label>
       </section>
       <section class="setsec" id="set-alert" role="tabpanel" aria-labelledby="setTab-alert" hidden>
@@ -421,6 +422,6 @@
 </dialog>
 <div class="albar" id="alBar" role="alert" hidden></div>
 <div class="toast" id="toast" hidden></div>
-<script src="js/app.js?v=v45"></script>
+<script src="js/app.js?v=v46"></script>
 </body>
 </html>
