@@ -167,11 +167,12 @@ let tq="";
 function hl(txt){ const e=esc(txt); if(!tq.trim()) return e; const ws=fold(tq.trim()).split(/\s+/).filter(Boolean); const f=fold(txt); const mk=new Array(txt.length).fill(false);
   if(f.length!==txt.length) return e; ws.forEach(w=>{ let i=0; while((i=f.indexOf(w,i))>=0){ for(let k=i;k<i+w.length;k++) mk[k]=true; i+=w.length; } });
   let out="",on=false; for(let i=0;i<txt.length;i++){ if(mk[i]!==on){ out+=mk[i]?'<mark class="hl">':'</mark>'; on=mk[i]; } out+=esc(txt[i]); } return out+(on?"</mark>":""); }
-let filter=(lsGet("pp-filter")||"open"), tagF=lsGet("pp-tag")||null, tagKey="", sortBy=(lsGet("pp-sort")||"manual"), editing=null, todoAdd=null, qnote=null, qnoteNew=null, linkAdd=null, alertAdd=null, focoAsk=null;
+let filter=(lsGet("pp-filter")||"open"), tagF=lsGet("pp-tag")||null, tagKey="", sortBy=(lsGet("pp-sort")||"manual"), editing=null, todoAdd=null, qnote=null, qnoteNew=null, linkAdd=null, brainAdd=null, alertAdd=null, focoAsk=null;
 // attached links: only http(s); a bare address gets https://
 const normUrl=v=>{ v=String(v||"").trim(); if(!v) return ""; if(!/^[a-z][a-z0-9+.-]*:/i.test(v)) v="https://"+v; try{ const u=new URL(v); return /^https?:$/.test(u.protocol)?u.href:""; }catch{ return ""; } };
 const linkName=(url,name)=>{ if(name) return name; try{ const u=new URL(url), last=decodeURIComponent(u.pathname.split("/").filter(Boolean).pop()||""); return last&&last.length<60?last:u.hostname.replace(/^www\./,""); }catch{ return url; } };
 const IC_P={"target": "<circle cx=\"8\" cy=\"8\" r=\"6\"/><circle cx=\"8\" cy=\"8\" r=\"3\"/><circle cx=\"8\" cy=\"8\" r=\".7\" fill=\"currentColor\"/>", "expand": "<path d=\"M2.5 6V2.5H6M10 2.5h3.5V6M13.5 10v3.5H10M6 13.5H2.5V10\"/>", "bell": "<path d=\"M4 11.4V7.6a4 4 0 0 1 8 0v3.8l1.3 1.3H2.7zM6.5 14a1.6 1.6 0 0 0 3 0\"/>", "link": "<path d=\"M6.7 9.3a2.6 2.6 0 0 0 3.7 0l2.3-2.3a2.6 2.6 0 0 0-3.7-3.7l-.9.9M9.3 6.7a2.6 2.6 0 0 0-3.7 0L3.3 9a2.6 2.6 0 0 0 3.7 3.7l.9-.9\"/>", "table": "<rect x=\"2\" y=\"2.8\" width=\"12\" height=\"10.4\" rx=\"1.4\"/><path d=\"M2 6.3h12M2 9.8h12M6.2 2.8v10.4M10.2 2.8v10.4\"/>", "pause": "<path d=\"M5.4 3.4v9.2M10.6 3.4v9.2\"/>", "sun": "<circle cx=\"8\" cy=\"8\" r=\"2.9\"/><path d=\"M8 1.6v1.5M8 12.9v1.5M1.6 8h1.5M12.9 8h1.5M3.5 3.5l1 1M11.5 11.5l1 1M3.5 12.5l1-1M11.5 4.5l1-1\"/>", "moon": "<path d=\"M13.2 9.6A5.6 5.6 0 0 1 6.4 2.8a5.6 5.6 0 1 0 6.8 6.8z\"/>", "monitor": "<rect x=\"1.8\" y=\"2.6\" width=\"12.4\" height=\"8.6\" rx=\"1.3\"/><path d=\"M5.6 14h4.8M8 11.2V14\"/>", "cols": "<rect x=\"1.8\" y=\"2.6\" width=\"12.4\" height=\"10.8\" rx=\"1.3\"/><path d=\"M6.4 2.6v10.8\"/>", "rows": "<rect x=\"1.8\" y=\"2.6\" width=\"12.4\" height=\"10.8\" rx=\"1.3\"/><path d=\"M1.8 7.4h12.4\"/>", "timer": "<circle cx=\"8\" cy=\"9\" r=\"5.2\"/><path d=\"M8 9V6.4M6.3 1.8h3.4M12.1 4.7l1-1\"/>", "image": "<rect x=\"2\" y=\"3\" width=\"12\" height=\"10\" rx=\"1.6\"/><circle cx=\"5.7\" cy=\"6.4\" r=\"1.1\"/><path d=\"M2.4 11.6l3.6-3.3 2.6 2.3 2-1.7 3 2.6\"/>", "trash": "<path d=\"M2.8 4.4h10.4M6.4 4.4V2.8h3.2v1.6M4.3 4.4l.6 8.8h6.2l.6-8.8M6.9 7v4.2M9.1 7v4.2\"/>", "x": "<path d=\"M4 4l8 8M12 4l-8 8\"/>", "star": "<path d=\"M8 1.9l1.85 3.85 4.2.55-3.07 2.92.78 4.17L8 11.35 4.24 13.4l.78-4.17L1.95 6.3l4.2-.55z\"/>", "check": "<path d=\"M3 8.6l3.1 3L13 4.6\"/>", "zap": "<path d=\"M9 1.6L3.6 9H8l-1 5.4L12.4 7H8z\"/>", "cal": "<rect x=\"2\" y=\"3\" width=\"12\" height=\"11\" rx=\"1.6\"/><path d=\"M2 6.6h12M5.4 1.6v2.8M10.6 1.6v2.8\"/>", "hl": "<path d=\"M10 2.2l3.8 3.8-6.3 6.3H3.7V8.5z\"/><path d=\"M2.2 14.3h6\"/>", "go": "<path d=\"M5 11l6-6M6.2 5H11v4.8\"/>", "rep": "<path d=\"M2.6 7.2V6.4A2.2 2.2 0 0 1 4.8 4.2h8.2M11 2.2l2 2-2 2M13.4 8.8v.8a2.2 2.2 0 0 1-2.2 2.2H3M5 13.8l-2-2 2-2\"/>", "book": "<path d=\"M3 3.2A1.6 1.6 0 0 1 4.6 1.6H13v10.6H4.6A1.6 1.6 0 0 0 3 13.8z\"/><path d=\"M3 13.8a1.6 1.6 0 0 0 1.6 1.6H13v-3.2\"/>", "plus": "<path d=\"M8 3v10M3 8h10\"/>", "edit": "<path d=\"M10.4 2.6l3 3L6 13H3v-3z\"/>", "up": "<path d=\"M8 13V3.4M4 7l4-4 4 4\"/>", "side": "<rect x=\"2\" y=\"2.6\" width=\"12\" height=\"10.8\" rx=\"1.6\"/><path d=\"M9.6 2.6v10.8\"/>", "board": "<rect x=\"2\" y=\"2.6\" width=\"12\" height=\"10.8\" rx=\"1.6\"/><path d=\"M6 2.6v10.8M10 2.6v10.8\"/>", "gear": "<circle cx=\"8\" cy=\"8\" r=\"2.2\"/><path d=\"M8 1.6v1.8M8 12.6v1.8M1.6 8h1.8M12.6 8h1.8M3.5 3.5l1.3 1.3M11.2 11.2l1.3 1.3M3.5 12.5l1.3-1.3M11.2 4.8l1.3-1.3\"/>", "down": "<path d=\"M8 2.4v8M4.6 7.2L8 10.6l3.4-3.4M3 13.6h10\"/>", "upl": "<path d=\"M8 10.6v-8M4.6 5.8L8 2.4l3.4 3.4M3 13.6h10\"/>", "play": "<path d=\"M5 3.4v9.2L12.2 8z\"/>", "circle": "<circle cx=\"8\" cy=\"8\" r=\"5\"/>", "sum": "<path d=\"M12 3H4.2L8.6 8l-4.4 5H12\"/>", "alert": "<circle cx=\"8\" cy=\"8\" r=\"6\"/><path d=\"M8 4.8v3.6M8 11h.01\"/>", "head": "<path d=\"M2.6 10.4V8a5.4 5.4 0 0 1 10.8 0v2.4\"/><rect x=\"2.4\" y=\"9.4\" width=\"2.8\" height=\"4.2\" rx=\"1\"/><rect x=\"10.8\" y=\"9.4\" width=\"2.8\" height=\"4.2\" rx=\"1\"/>", "tv": "<rect x=\"2\" y=\"3.2\" width=\"12\" height=\"8.6\" rx=\"1.6\"/><path d=\"M5.8 14.2h4.4\"/>", "arr": "<path d=\"M3 8h9.6M9 4.4L12.6 8 9 11.6\"/>"};
+IC_P.page="<path d=\"M4 1.8h5l3 3v9.4H4z\"/><path d=\"M9 1.8v3h3M6 8.2h4M6 10.8h4\"/>";
 const ic=(n,c)=>`<svg class="ic${c?" "+c:""}" viewBox="0 0 16 16" aria-hidden="true">${IC_P[n]}</svg>`;
 const ICON_LIST='<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M6 4h8M6 8h8M6 12h8"/><circle cx="2.6" cy="4" r=".9" fill="currentColor" stroke="none"/><circle cx="2.6" cy="8" r=".9" fill="currentColor" stroke="none"/><circle cx="2.6" cy="12" r=".9" fill="currentColor" stroke="none"/></svg>';
 var notesArch=false;
@@ -445,13 +446,14 @@ function render(){ applyLook(); incCheck(); prodRender(); incRender(); projStrip
         <button class="icon ico ${(S.focus||[]).includes(t.id)?"on":""}" type="button" data-act="foco" aria-label="Foco" title="${(S.focus||[]).includes(t.id)?"Sacar de Foco":"Agregar a Foco"}">${ic("target")}</button>
         <button class="icon ico" type="button" data-act="alert" aria-label="Alerta" title="${t.alert?"Cambiar la alerta":"Agregar una alerta"}">${ic("bell")}</button>`}
         <button class="icon ico" type="button" data-act="link" aria-label="Adjuntar link" title="Adjuntar link">${ic("link")}</button>
+        ${BRAIN_API?`<button class="icon ico" type="button" data-act="brainref" aria-label="Página de Brain" title="Referenciar una página de Brain">${ic("page")}</button>`:""}
         <button class="icon" type="button" data-act="edit" aria-label="Editar" title="Editar">${ic("edit")}</button>
         <button class="icon" type="button" data-act="up" aria-label="Subir" title="Subir">${ic("up")}</button>
         <button class="icon" type="button" data-act="del" aria-label="Eliminar" title="Eliminar">${ic("x")}</button>
       </div></div>
       <button class="check" type="button" data-act="done" aria-label="${t.completed?"Reabrir tarea":"Marcar hecha"}" title="${t.completed?"Reabrir tarea":"Marcar como hecha"}">${ic(t.completed&&t.status==="cancelled"?"x":"check")}</button>
-      ${(t.links||[]).length||linkAdd===t.id?`<div class="tlinks">${(t.links||[]).map(l=>`<span class="tlink" data-link="${l.id}"><a href="${esc(l.url)}" target="_blank" rel="noopener noreferrer" title="${esc(l.url)}">${ic("link")}${esc(l.name)}</a><button class="x" type="button" data-act="link-del" aria-label="Quitar link ${esc(l.name)}" title="Quitar link">${ic("x")}</button></span>`).join("")}
-        ${linkAdd===t.id?`<div class="tladd"><input type="url" id="tl-url" placeholder="Pega el link (OneDrive, SharePoint, web…)" aria-label="Link"><input type="text" id="tl-name" placeholder="Nombre (opcional)" aria-label="Nombre del link"><button class="btn sm" type="button" data-act="link-cancel">Cancelar</button><button class="btn sm primary" type="button" data-act="link-save">Adjuntar</button></div>`:""}</div>`:""}
+      ${(t.links||[]).length||linkAdd===t.id||brainAdd===t.id?`<div class="tlinks">${(t.links||[]).map(l=>`<span class="tlink${l.brain?" brain":""}${l.gone?" gone":""}" data-link="${l.id}">${l.brain?`<a href="${esc(l.url)}" data-brain="${esc(l.brain)}" target="_blank" rel="noopener noreferrer" title="${l.gone?"Ya no está en Brain (borrada o en la papelera)":"Abrir en Brain: "+esc(l.name)}">${ic("page")}${esc(l.name)}</a>`:`<a href="${esc(l.url)}" target="_blank" rel="noopener noreferrer" title="${esc(l.url)}">${ic("link")}${esc(l.name)}</a>`}<button class="x" type="button" data-act="link-del" aria-label="Quitar link ${esc(l.name)}" title="Quitar link">${ic("x")}</button></span>`).join("")}
+        ${linkAdd===t.id?`<div class="tladd"><input type="url" id="tl-url" placeholder="Pega el link (OneDrive, SharePoint, web…)" aria-label="Link"><input type="text" id="tl-name" placeholder="Nombre (opcional)" aria-label="Nombre del link"><button class="btn sm" type="button" data-act="link-cancel">Cancelar</button><button class="btn sm primary" type="button" data-act="link-save">Adjuntar</button></div>`:""}${brainAdd===t.id?brainForm():""}</div>`:""}
       ${alertAdd===t.id&&!t.completed?alForm(t):""}
       ${focoAsk===t.id&&!t.completed?focoAskHtml(t):""}
       ${editing===t.id?`<div class="edit">
@@ -612,14 +614,68 @@ setInterval(()=>prodRender(),60000);
 $("#addTask").addEventListener("keydown",e=>{ if(e.key==="Escape"){ e.preventDefault(); showTaskForm(false); } });
 function linkSave(t){ const url=normUrl($("#tl-url").value); if(!url){ toast("Ese link no es válido. Copia la dirección completa."); $("#tl-url").focus(); return; }
   t.links=[...(t.links||[]),{id:uid(),url,name:linkName(url,$("#tl-name").value.trim())}]; linkAdd=null; document.activeElement.blur(); commit(); toast("Link adjuntado"); }
+// ---------- Páginas de Brain en una tarea ----------
+// Dentro de Brain, una tarea puede referenciar páginas de Brain. Se buscan con la
+// misma búsqueda de Brain y, al hacer clic, Brain abre la página en su ventana.
+let brainQ="", brainRes=[], brainT=null;
+function brainForm(){ return `<div class="tladd bradd"><input type="search" id="br-q" placeholder="Busca una página de Brain por título o contenido" aria-label="Buscar página de Brain" value="${esc(brainQ)}" autocomplete="off"><button class="btn sm" type="button" data-act="brain-cancel">Cancelar</button><div class="brres" id="br-res" aria-live="polite">${brainResHtml()}</div></div>`; }
+function brainResHtml(){
+  if(brainQ.trim().length<2) return `<p class="brmsg">Escribe al menos 2 letras.</p>`;
+  if(brainRes===null) return `<p class="brmsg">Buscando…</p>`;
+  if(!brainRes.length) return `<p class="brmsg">No hay páginas con «${esc(brainQ.trim())}».</p>`;
+  return brainRes.map(p=>`<button type="button" class="brpick" data-act="brain-pick" data-pid="${esc(p.id)}" data-title="${esc(p.title||"Sin título")}">${p.icon?`<span class="bri" aria-hidden="true">${esc(p.icon)}</span>`:ic("page")}<span class="brt">${esc(p.title||"Sin título")}</span>${p.snippet?`<span class="brs">${esc(p.snippet)}</span>`:""}</button>`).join("");
+}
+function brainSearch(q){
+  brainQ=q; clearTimeout(brainT); const paint=()=>{ const b=$("#br-res"); if(b) b.innerHTML=brainResHtml(); };
+  if(q.trim().length<2){ brainRes=[]; paint(); return; }
+  brainRes=null; paint();
+  brainT=setTimeout(async()=>{
+    let list=[]; try{ const r=await fetch("/api/search?q="+encodeURIComponent(q.trim()),{cache:"no-store"}); if(r.ok) list=await r.json(); }catch{}
+    if(brainQ!==q) return; brainRes=(Array.isArray(list)?list:[]).filter(p=>p&&p.id&&p.kind!=="row").slice(0,12); paint();
+  },250);
+}
+const brainUrl=id=>location.origin+"/p/"+encodeURIComponent(id);
+// Agrega la referencia si la tarea aún no la tiene. Devuelve si la agregó.
+function brainLink(t,id,title){
+  if((t.links||[]).some(l=>l.brain===id)) return false;
+  t.links=[...(t.links||[]),{id:uid(),url:brainUrl(id),name:String(title||"Página de Brain").slice(0,200),brain:id}]; return true;
+}
+// Al abrir Focus en Brain: los títulos al día y las páginas que ya no están.
+async function brainTitles(){
+  const ids=[...new Set(S.tasks.flatMap(t=>(t.links||[]).filter(l=>l.brain).map(l=>l.brain)))]; if(!ids.length) return;
+  let m; try{ const r=await fetch("/api/focus/pages?ids="+ids.map(encodeURIComponent).join(","),{cache:"no-store"}); if(!r.ok) return; m=await r.json(); }catch{ return; }
+  let ch=false;
+  S.tasks.forEach(t=>(t.links||[]).forEach(l=>{ if(!l.brain) return; const p=m[l.brain], gone=!p||!!p.inTrash;
+    if(p&&p.title&&p.title!==l.name){ l.name=p.title; ch=true; }
+    if(!!l.gone!==gone){ if(gone) l.gone=true; else delete l.gone; ch=true; } }));
+  if(ch) commit();
+}
+function addPageTask(x){
+  const pg=x.brainPage||{}, pid=String(pg.id||"").slice(0,100), title=String(x.title||pg.title||"").replace(/\s+/g," ").trim().slice(0,300);
+  if(!title||!pid) return {result:"invalid"};
+  const ex=S.tasks.find(t=>!t.completed&&(t.links||[]).some(l=>l.brain===pid)); if(ex) return {result:"exists",title:ex.title};
+  const now=Date.now(), t={id:uid(),title,tag:"",status:"inbox",crit:"media",due:null,est:1,pomos:0,spent:0,completed:false,createdAt:now,order:now,src:"brain"};
+  brainLink(t,pid,pg.title||title); S.tasks.push(t); commit(); toast("Tarea agregada desde Brain a la Bandeja");
+  return {result:"added",title};
+}
+// Clic en una página de Brain: dentro de Brain se abre ahí mismo, sin otra ventana.
+$("#tasks").addEventListener("click",e=>{ const a=e.target.closest("a[data-brain]"); if(!a||parent===window) return;
+  e.preventDefault(); e.stopPropagation(); parent.postMessage({type:"focus:open-brain-page",pageId:a.dataset.brain},location.origin); },true);
+$("#tasks").addEventListener("input",e=>{ if(e.target.id==="br-q") brainSearch(e.target.value); });
+$("#tasks").addEventListener("keydown",e=>{ if(e.target.id!=="br-q") return; e.stopPropagation();
+  if(e.key==="Escape"){ e.preventDefault(); brainAdd=null; render(); }
+  else if(e.key==="Enter"){ e.preventDefault(); const f=$("#br-res .brpick"); f&&f.click(); } },true);
 $("#tasks").addEventListener("keydown",e=>{ if(!e.target.closest(".tladd")) return; const t=taskById(e.target.closest(".task").dataset.id);
   if(e.key==="Enter"){ e.preventDefault(); t&&linkSave(t); } else if(e.key==="Escape"){ e.preventDefault(); linkAdd=null; render(); } });
 $("#tasks").addEventListener("click",e=>{
   const b=e.target.closest("[data-act]"); if(!b) return; const id=b.closest(".task").dataset.id, t=S.tasks.find(x=>x.id===id); if(!t) return;
   const a=b.dataset.act;
   if(a==="todo-toggle"){ t.todoMin=!t.todoMin; if(t.todoMin&&todoAdd===id) todoAdd=null; commit(); return; }
-  if(a==="link"){ linkAdd=linkAdd===id?null:id; render(); const el=$("#tl-url"); el&&el.focus(); return; }
+  if(a==="link"){ linkAdd=linkAdd===id?null:id; brainAdd=null; render(); const el=$("#tl-url"); el&&el.focus(); return; }
   if(a==="link-cancel"){ linkAdd=null; document.activeElement.blur(); render(); return; }
+  if(a==="brainref"){ brainAdd=brainAdd===id?null:id; linkAdd=null; brainQ=""; brainRes=[]; render(); const el=$("#br-q"); el&&el.focus(); return; }
+  if(a==="brain-cancel"){ brainAdd=null; render(); return; }
+  if(a==="brain-pick"){ const ok=brainLink(t,b.dataset.pid,b.dataset.title); brainAdd=null; commit(); toast(ok?"Página de Brain referenciada":"Esa página ya estaba en la tarea"); return; }
   if(a==="foco"){ if((S.focus||[]).includes(id)){ focoOut(id); toast("Sacada de Foco"); } else focoAdd(id); return; }
   if(a==="foco-rep"){ const f=focoIds(), i=+b.dataset.i, old=f[i]; f[i]=id; S.focus=f; focoAsk=null; if(i===0&&T.track&&T.track.id===old&&T.running) startTrack(id); else commit(); toast("Agregada a Foco: "+FOCO_LB[i]); return; }
   if(a==="foco-cancel"){ focoAsk=null; render(); return; }
@@ -2629,6 +2685,7 @@ if(BRAIN_API){
   // Si queda algo sin llegar a Brain, el navegador pregunta antes de cerrar.
   addEventListener("beforeunload",e=>{ if(brainPending()&&docRef){ e.preventDefault(); e.returnValue=""; } });
   brainBoot=brainStart();
+  brainBoot.then(ok=>ok&&brainTitles());
 }
 brainUi();
 // Brain → Focus: «Enviar a Focus» en Ticket agrega el ticket como caso de Producción.
@@ -2637,8 +2694,25 @@ addEventListener("message",async e=>{
   if(parent===window||e.source!==parent||e.origin!==location.origin) return;
   const m=e.data; if(!m||m.type!=="brain:add-task"||!m.task||typeof m.task!=="object") return;
   await brainBoot;
-  const r=addTicketTask(m.task);
+  const r=m.task.brainPage?addPageTask(m.task):addTicketTask(m.task);
   parent.postMessage({type:"focus:task-added",id:m.id,...r},location.origin);
+});
+// Brain → Focus: «Enviar a Focus» en una página lista las tareas abiertas y
+// agrega la referencia a la que se elija.
+addEventListener("message",async e=>{
+  if(parent===window||e.source!==parent||e.origin!==location.origin) return;
+  const m=e.data; if(!m||typeof m.type!=="string") return;
+  if(m.type==="brain:list-tasks"){
+    await brainBoot; const pid=String(m.pageId||"");
+    const tasks=S.tasks.filter(t=>!t.completed).sort((a,b)=>(b.order||0)-(a.order||0)).slice(0,500)
+      .map(t=>({id:t.id,title:t.title,tag:t.tag||"",status:t.status||"todo",linked:!!pid&&(t.links||[]).some(l=>l.brain===pid)}));
+    parent.postMessage({type:"focus:tasks",id:m.id,tasks},location.origin);
+  }
+  if(m.type==="brain:link-task"){
+    await brainBoot; const t=S.tasks.find(x=>x.id===m.taskId), pg=m.page&&typeof m.page==="object"?m.page:{};
+    let result="invalid"; if(t&&pg.id){ result=brainLink(t,String(pg.id).slice(0,100),pg.title)?"linked":"exists"; if(result==="linked"){ commit(); toast("Página de Brain referenciada en «"+t.title+"»"); } }
+    parent.postMessage({type:"focus:task-linked",id:m.id,result,title:t?t.title:""},location.origin);
+  }
 });
 function addTicketTask(x){
   const title=String(x.title||"").replace(/\s+/g," ").trim().slice(0,300), tk=String(x.ticket||"").trim().slice(0,60);
