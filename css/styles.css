@@ -1234,3 +1234,13 @@ body.clk-day .dial{width:min(470px,100%)}
 .clkday .tl{background:var(--rail);border-color:var(--rail-line);border-radius:12px}
 .clkday .f{background:rgb(255 255 255/.78)}
 .clkday .nw{background:#fff}
+
+/* ---------- opacidad de los paneles (Ajustes > Apariencia) ---------- */
+body.pan-solid{--glass:rgb(255 255 255/.98)}
+body.pan-glass{--glass:rgb(255 255 255/.72)}
+:root[data-theme="dark"] body.pan-solid{--glass:rgb(16 19 28/.97)}
+:root[data-theme="dark"] body.pan-glass{--glass:rgb(16 19 28/.68)}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]) body.pan-solid{--glass:rgb(16 19 28/.97)}
+  :root:not([data-theme="light"]) body.pan-glass{--glass:rgb(16 19 28/.68)}
+}
