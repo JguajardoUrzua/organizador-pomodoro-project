@@ -844,8 +844,8 @@ function applyLook(){ if(HOST_THEME===undefined) return; const st=S.settings, th
   document.querySelectorAll("[data-theme-opt]").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.themeOpt===th)));
   const ck=["ring","disc","day"].includes(st.clock)?st.clock:"classic"; ["ring","disc","day"].forEach(k=>document.body.classList.toggle("clk-"+k,ck===k));
   document.querySelectorAll("[data-clk]").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.clk===ck)));
-  // Opacidad de los paneles: opacos, medios (lo de siempre) o translúcidos.
-  const pan=st.panels==="solid"||st.panels==="glass"?st.panels:"mid"; ["solid","glass"].forEach(k=>document.body.classList.toggle("pan-"+k,pan===k));
+  // Opacidad de los paneles: opacos, medios (lo de siempre), translúcidos o muy translúcidos.
+  const pan=["solid","glass","clear"].includes(st.panels)?st.panels:"mid"; ["solid","glass","clear"].forEach(k=>document.body.classList.toggle("pan-"+k,pan===k));
   document.querySelectorAll("[data-pan]").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.pan===pan)));
   document.querySelectorAll("[data-lay-opt]").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.layOpt===(st.layout==="below"?"below":"side")))); }
 $("#panSeg").addEventListener("click",e=>{ const b=e.target.closest("[data-pan]"); if(!b) return; S.settings.panels=b.dataset.pan; applyLook(); commit(); });

@@ -1248,9 +1248,12 @@ body.clk-day .dial{width:min(470px,100%)}
 /* ---------- opacidad de los paneles (Ajustes > Apariencia) ---------- */
 body.pan-solid{--glass:rgb(255 255 255/.98)}
 body.pan-glass{--glass:rgb(255 255 255/.72)}
+body.pan-clear{--glass:rgb(255 255 255/.45)}
 :root[data-theme="dark"] body.pan-solid{--glass:rgb(16 19 28/.97)}
 :root[data-theme="dark"] body.pan-glass{--glass:rgb(16 19 28/.68)}
+:root[data-theme="dark"] body.pan-clear{--glass:rgb(16 19 28/.42)}
 @media (prefers-color-scheme: dark){
   :root:not([data-theme="light"]) body.pan-solid{--glass:rgb(16 19 28/.97)}
   :root:not([data-theme="light"]) body.pan-glass{--glass:rgb(16 19 28/.68)}
+  :root:not([data-theme="light"]) body.pan-clear{--glass:rgb(16 19 28/.42)}
 }
