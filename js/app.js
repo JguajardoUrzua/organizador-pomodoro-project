@@ -1697,7 +1697,7 @@ function jMd(src){ const root=document.createElement("div"); root.innerHTML=jCle
       [...li.children].filter(n=>n.tagName==="UL"||n.tagName==="OL").forEach(sub=>list(sub,depth+1)); }); };
   const walk=el=>{ let run=[]; const flush=()=>{ if(run.length){ para(run); run=[]; } };
     el.childNodes.forEach(c=>{ const tg=c.nodeType===1?c.tagName:"";
-      if(tg==="DIV"&&c.classList.contains("jfoco")){ flush(); B.push({k:"raw",t:"**◎ Foco**\n"+jFocoIds(c).map((id,i)=>{ const t=taskById(id); return t?(t.completed?"- [x] ":"- [ ] ")+FOCO_LB[i]+": "+t.title:""; }).filter(Boolean).join("\n")}); }
+      if(tg==="DIV"&&c.classList.contains("jfoco")){ flush(); B.push({k:"raw",t:"**◎ Foco**\n"+jFocoIds(c).map((id,i)=>{ const t=taskById(id); return t?(t.completed?"- [x] ":"- [ ] ")+jfLb(i)+": "+t.title:""; }).filter(Boolean).join("\n")}); }
       else if(tg==="DIV"||tg==="P"){ flush(); if(c.querySelector("div,p,ul,ol,pre,table")) walk(c); else para([...c.childNodes]); }
       else if(tg==="UL"||tg==="OL"){ flush(); list(c,0); }
       else if(tg==="PRE"){ flush(); B.push({k:"raw",t:"```\n"+jPreText(c).replace(/\n$/,"")+"\n```"}); }
@@ -2058,14 +2058,17 @@ $("#jAtBtn").addEventListener("mousedown",e=>e.preventDefault());
 $("#jAtBtn").addEventListener("click",()=>{ if(document.activeElement!==jEd) jEd.focus(); const sl=getSelection(), r=sl.rangeCount&&sl.getRangeAt(0), n=r&&r.startContainer;
   const prev=n&&n.nodeType===3&&r.startOffset>0?n.data[r.startOffset-1]:""; document.execCommand("insertText",false,prev&&!/[\s ]/.test(prev)?" @":"@"); });
 // ---- Foco list in the bitácora: a block nobody types into. Today it mirrors Foco (adding/removing here changes Foco); other days keep what Foco had ----
+// own labels: this runs while the bitácora opens at startup, before the Foco section (FOCO_LB) is set up
 function jFocoIds(el){ return String(el.getAttribute("data-ids")||"").split(",").filter(Boolean); }
 var jFocoQ="";
-function jFocoPaint(){ if(typeof jEd==="undefined"||!jEd) return; const bl=[...jEd.querySelectorAll(".jfoco")]; if(!bl.length) return;
+function jfLb(i){ return ["Ahora","Siguiente","Después"][i]||""; }
+function jFocoPaint(){ try{ jFocoPaint1(); }catch(e){ console.error("Lista de Foco:",e); } }
+function jFocoPaint1(){ if(typeof jEd==="undefined"||!jEd) return; const bl=[...jEd.querySelectorAll(".jfoco")]; if(!bl.length) return;
   const live=jCur===jToday(), f=live?focoIds():null; let ch=false;
   bl.forEach(el=>{ if(live){ const v=f.join(","); if(el.getAttribute("data-ids")!==v){ el.setAttribute("data-ids",v); ch=true; } }
     const ids=live?f:jFocoIds(el), pick=live&&el.dataset.pick==="1"&&ids.length<3, trk=T.track&&T.track.id;
     let h=`<div class="jfh">${ic("target")} Foco <small>${live?ids.length+" de 3 · al día con Foco":"cómo quedó ese día"}</small><span class="jsp"></span><button class="jfb" type="button" data-jf="rm" title="Quitar este bloque de la bitácora (Foco no cambia)" aria-label="Quitar bloque">${ic("x")}</button></div>`;
-    h+=ids.length?ids.map((id,i)=>{ const t=taskById(id); if(!t) return ""; return `<div class="jfr ${i===0?"jnow":""}" data-id="${t.id}"><span class="jfn">${t.completed?"✓":i+1}</span><span class="jfl">${FOCO_LB[i]}${live&&trk===t.id?" ●":""}</span><button class="jft" type="button" data-jf="go" title="Ir a la tarea">${esc(t.title)}</button>${t.tag?`<span class="jfp">${esc(t.tag)}</span>`:""}${live?`${i?`<button class="jfb" type="button" data-jf="top" title="Pasar a Ahora" aria-label="Pasar a Ahora">${ic("up")}</button>`:""}<button class="jfb" type="button" data-jf="out" title="Sacar de Foco" aria-label="Sacar de Foco">${ic("x")}</button>`:""}</div>`; }).join(""):`<div class="jfe">${live?"Foco está vacío.":"Ese día Foco estaba vacío."}</div>`;
+    h+=ids.length?ids.map((id,i)=>{ const t=taskById(id); if(!t) return ""; return `<div class="jfr ${i===0?"jnow":""}" data-id="${t.id}"><span class="jfn">${t.completed?"✓":i+1}</span><span class="jfl">${jfLb(i)}${live&&trk===t.id?" ●":""}</span><button class="jft" type="button" data-jf="go" title="Ir a la tarea">${esc(t.title)}</button>${t.tag?`<span class="jfp">${esc(t.tag)}</span>`:""}${live?`${i?`<button class="jfb" type="button" data-jf="top" title="Pasar a Ahora" aria-label="Pasar a Ahora">${ic("up")}</button>`:""}<button class="jfb" type="button" data-jf="out" title="Sacar de Foco" aria-label="Sacar de Foco">${ic("x")}</button>`:""}</div>`; }).join(""):`<div class="jfe">${live?"Foco está vacío.":"Ese día Foco estaba vacío."}</div>`;
     if(live) h+=ids.length>=3?`<div class="jfe">Foco está lleno: saca una para agregar otra.</div>`:pick?jFocoPick(ids):`<button class="jfadd" type="button" data-jf="add">+ Agregar a Foco</button>`;
     el.classList.toggle("past",!live);
     if(el.dataset.h!==h){ const keep=document.activeElement&&el.contains(document.activeElement)&&document.activeElement.tagName==="INPUT"; el.dataset.h=h; el.innerHTML=h; if(keep){ const n=el.querySelector("input"); if(n){ n.focus(); n.setSelectionRange(n.value.length,n.value.length); } } } });
