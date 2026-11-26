@@ -406,7 +406,7 @@ function pjOpenDlg(){ pjAdd=null; $("#projDlg").showModal(); pjRender(); }
 var jReady=false; // set once the bitácora code below has run
 function render(){ applyLook(); incCheck(); prodRender(); incRender(); projStripRender(); pjRender();
   const st=S.settings;
-  renderKanban(); if(jReady){ jClosedRender(); jMarkTasks(); jCarryRender(); calRender(); }
+  renderKanban(); if(jReady){ jClosedRender(); jMarkTasks(); jCarryRender(); calRender(); jFocoPaint(); }
   // tags
   const tags=[...new Set(S.tasks.map(t=>t.tag).filter(Boolean))].sort();
   $("#tags").innerHTML=tags.map(t=>`<option value="${esc(t)}">`).join("");
@@ -1261,6 +1261,8 @@ function jClean(html){
     if(c.tagName==="SPAN"&&c.classList.contains("jref")){ const id=String(c.getAttribute("data-task")||"").replace(/[^a-z0-9]/gi,""), tt=c.querySelector(".tt"), tx=(tt?tt.textContent:c.textContent).replace(/\s+/g," ").trim();
       [...c.attributes].forEach(a=>c.removeAttribute(a.name)); if(!id){ c.replaceWith(doc.createTextNode(tx)); return; }
       c.className="jref"; c.setAttribute("data-task",id); c.setAttribute("contenteditable","false"); c.textContent=tx||"tarea"; return; }
+    if(c.tagName==="DIV"&&c.classList.contains("jfoco")){ const ids=String(c.getAttribute("data-ids")||"").split(",").map(x=>x.replace(/[^a-z0-9]/gi,"")).filter(Boolean).slice(0,3).join(",");
+      [...c.attributes].forEach(a=>c.removeAttribute(a.name)); c.className="jfoco"; c.setAttribute("contenteditable","false"); c.setAttribute("data-ids",ids); c.innerHTML=""; return; }
     if(c.tagName==="PRE"){ let t=jPreText(c); [...c.attributes].forEach(a=>c.removeAttribute(a.name)); c.className="jcode"; c.textContent=t; if(!t) c.innerHTML="<br>"; else if(t.endsWith("\n")) c.appendChild(document.createElement("br")); return; }
     walk(c);
     if(/^(SCRIPT|STYLE|TEMPLATE|IFRAME|OBJECT|EMBED|NOSCRIPT|TITLE|HEAD)$/.test(c.tagName)){ c.remove(); return; }
@@ -1295,6 +1297,7 @@ function jText(src){
   (function walk(n){ n.childNodes.forEach(c=>{
     if(c.nodeType===3){ out+=c.data; return; } if(c.nodeType!==1||(c.classList&&c.classList.contains("jtask"))) return;
     if(c.classList&&c.classList.contains("jhc")) return;
+    if(c.classList&&c.classList.contains("jfoco")){ nl(); out+="Foco:\n"+jFocoIds(c).map((id,i)=>{ const t=taskById(id); return t?(t.completed?"[x] ":"[ ] ")+(i+1)+". "+t.title:""; }).filter(Boolean).join("\n"); nl(); return; }
     if(c.classList&&c.classList.contains("jref")){ const t=taskById(c.dataset.task), tt=c.querySelector(".tt"); out+=(t&&t.completed?"[x] ":"[ ] ")+(t?t.title:(tt?tt.textContent:c.textContent)); return; }
     const tg=c.tagName;
     if(tg==="BR"){ out+="\n"; return; }
@@ -1334,7 +1337,7 @@ function jTemplate(k,heads){
 
 // ---- persistence ----
 function jStore(k){ if(!jEdited||k!==jCur) return; jEdited=false;
-  const html=jEd.querySelector(".jhc,.jhid,.jhdrop")?(()=>{ const x=jEd.cloneNode(true); x.querySelectorAll(".jhc").forEach(n=>n.remove()); x.querySelectorAll(".jhid,.jhdrop").forEach(n=>{ n.classList.remove("jhid","jhdrop"); if(!n.className) n.removeAttribute("class"); }); x.querySelectorAll("[draggable]").forEach(n=>n.removeAttribute("draggable")); return x.innerHTML; })():jEd.innerHTML, empty=!jEd.textContent.trim();
+  const html=jEd.querySelector(".jhc,.jhid,.jhdrop,.jfoco")?(()=>{ const x=jEd.cloneNode(true); x.querySelectorAll(".jfoco").forEach(n=>{ n.innerHTML=""; n.removeAttribute("data-pick"); n.removeAttribute("data-h"); n.classList.remove("past"); }); x.querySelectorAll(".jhc").forEach(n=>n.remove()); x.querySelectorAll(".jhid,.jhdrop").forEach(n=>{ n.classList.remove("jhid","jhdrop"); if(!n.className) n.removeAttribute("class"); }); x.querySelectorAll("[draggable]").forEach(n=>n.removeAttribute("draggable")); return x.innerHTML; })():jEd.innerHTML, empty=!jEd.textContent.trim();
   J.days[k]=empty&&!jEd.querySelector("li")?{html:"",updatedAt:Date.now(),deleted:true}:{html,updatedAt:Date.now()};
   if(html.length>200000) toast("Este día está muy largo; considera seguir en un día nuevo.");
   lsSet(LJ,J); jDirty.add(k); jFlushSoon(); }
@@ -1361,7 +1364,7 @@ function jOpen(k){ jSaveNow(); jCur=k; const live=jLive(k);
   if(live){ jEd.innerHTML=jClean(J.days[k].html); jLinkify(jEd); }
   else { jEd.innerHTML=""; const pk=jPrevDay(k); $("#jStartHeads").hidden=!pk; $("#jEmptyMsg").textContent=k===jToday()?"Aún no empiezas la bitácora de hoy.":`No hay bitácora para el ${jLabel(k,true)}.`;
     $("#jStartPlan").hidden=!(S.settings.planHeads||[]).length; $("#jStartHeads").classList.toggle("primary",$("#jStartPlan").hidden); $("#jStartHeads").textContent=pk?`Empezar con los encabezados del ${jLabel(pk,true).replace("Hoy · ","")}`:""; }
-  jDayList(); jClosedRender(); jRefPaint(); jCarryRender(); }
+  jDayList(); jClosedRender(); jRefPaint(); jFocoPaint(); jCarryRender(); }
 function jStart(heads){ J.days[jCur]={html:heads==="plan"?jTemplate(jCur,false).replace(/<div><br><\/div>$/,"")+jPlanHtml(S.settings.planHeads||[]):jTemplate(jCur,heads),updatedAt:Date.now()}; lsSet(LJ,J); jDirty.add(jCur); jFlushSoon(); jOpen(jCur);
   // caret at the end of the first section, ready to type
   const tabs=[...jEd.querySelectorAll("div")].filter(d=>d.textContent==="\t"), h0=heads==="plan"&&jHeads(jEd)[0]; const tgt=(h0&&h0.nextElementSibling)||tabs[0]||jEd.lastElementChild||jEd;
@@ -1694,7 +1697,8 @@ function jMd(src){ const root=document.createElement("div"); root.innerHTML=jCle
       [...li.children].filter(n=>n.tagName==="UL"||n.tagName==="OL").forEach(sub=>list(sub,depth+1)); }); };
   const walk=el=>{ let run=[]; const flush=()=>{ if(run.length){ para(run); run=[]; } };
     el.childNodes.forEach(c=>{ const tg=c.nodeType===1?c.tagName:"";
-      if(tg==="DIV"||tg==="P"){ flush(); if(c.querySelector("div,p,ul,ol,pre,table")) walk(c); else para([...c.childNodes]); }
+      if(tg==="DIV"&&c.classList.contains("jfoco")){ flush(); B.push({k:"raw",t:"**◎ Foco**\n"+jFocoIds(c).map((id,i)=>{ const t=taskById(id); return t?(t.completed?"- [x] ":"- [ ] ")+FOCO_LB[i]+": "+t.title:""; }).filter(Boolean).join("\n")}); }
+      else if(tg==="DIV"||tg==="P"){ flush(); if(c.querySelector("div,p,ul,ol,pre,table")) walk(c); else para([...c.childNodes]); }
       else if(tg==="UL"||tg==="OL"){ flush(); list(c,0); }
       else if(tg==="PRE"){ flush(); B.push({k:"raw",t:"```\n"+jPreText(c).replace(/\n$/,"")+"\n```"}); }
       else if(tg==="TABLE"){ flush(); const rows=[...c.querySelectorAll("tr")].map(tr=>[...tr.children].map(td=>inl(td).replace(/ /g," ").replace(/\s*\n\s*/g," ").replace(/\|/g,"\\|").trim()));
@@ -2053,6 +2057,56 @@ document.addEventListener("keydown",e=>{ if(e.key==="Escape"&&!jRM.hidden){ jRMC
 $("#jAtBtn").addEventListener("mousedown",e=>e.preventDefault());
 $("#jAtBtn").addEventListener("click",()=>{ if(document.activeElement!==jEd) jEd.focus(); const sl=getSelection(), r=sl.rangeCount&&sl.getRangeAt(0), n=r&&r.startContainer;
   const prev=n&&n.nodeType===3&&r.startOffset>0?n.data[r.startOffset-1]:""; document.execCommand("insertText",false,prev&&!/[\s ]/.test(prev)?" @":"@"); });
+// ---- Foco list in the bitácora: a block nobody types into. Today it mirrors Foco (adding/removing here changes Foco); other days keep what Foco had ----
+function jFocoIds(el){ return String(el.getAttribute("data-ids")||"").split(",").filter(Boolean); }
+var jFocoQ="";
+function jFocoPaint(){ if(typeof jEd==="undefined"||!jEd) return; const bl=[...jEd.querySelectorAll(".jfoco")]; if(!bl.length) return;
+  const live=jCur===jToday(), f=live?focoIds():null; let ch=false;
+  bl.forEach(el=>{ if(live){ const v=f.join(","); if(el.getAttribute("data-ids")!==v){ el.setAttribute("data-ids",v); ch=true; } }
+    const ids=live?f:jFocoIds(el), pick=live&&el.dataset.pick==="1"&&ids.length<3, trk=T.track&&T.track.id;
+    let h=`<div class="jfh">${ic("target")} Foco <small>${live?ids.length+" de 3 · al día con Foco":"cómo quedó ese día"}</small><span class="jsp"></span><button class="jfb" type="button" data-jf="rm" title="Quitar este bloque de la bitácora (Foco no cambia)" aria-label="Quitar bloque">${ic("x")}</button></div>`;
+    h+=ids.length?ids.map((id,i)=>{ const t=taskById(id); if(!t) return ""; return `<div class="jfr ${i===0?"jnow":""}" data-id="${t.id}"><span class="jfn">${t.completed?"✓":i+1}</span><span class="jfl">${FOCO_LB[i]}${live&&trk===t.id?" ●":""}</span><button class="jft" type="button" data-jf="go" title="Ir a la tarea">${esc(t.title)}</button>${t.tag?`<span class="jfp">${esc(t.tag)}</span>`:""}${live?`${i?`<button class="jfb" type="button" data-jf="top" title="Pasar a Ahora" aria-label="Pasar a Ahora">${ic("up")}</button>`:""}<button class="jfb" type="button" data-jf="out" title="Sacar de Foco" aria-label="Sacar de Foco">${ic("x")}</button>`:""}</div>`; }).join(""):`<div class="jfe">${live?"Foco está vacío.":"Ese día Foco estaba vacío."}</div>`;
+    if(live) h+=ids.length>=3?`<div class="jfe">Foco está lleno: saca una para agregar otra.</div>`:pick?jFocoPick(ids):`<button class="jfadd" type="button" data-jf="add">+ Agregar a Foco</button>`;
+    el.classList.toggle("past",!live);
+    if(el.dataset.h!==h){ const keep=document.activeElement&&el.contains(document.activeElement)&&document.activeElement.tagName==="INPUT"; el.dataset.h=h; el.innerHTML=h; if(keep){ const n=el.querySelector("input"); if(n){ n.focus(); n.setSelectionRange(n.value.length,n.value.length); } } } });
+  if(ch){ jEdited=true; jStore(jCur); } }
+function jFocoCands(ids){ const q=fold(jFocoQ.trim()); return S.tasks.filter(t=>!t.completed&&!ids.includes(t.id)&&(!q||fold(t.title+" "+(t.tag||"")).includes(q)))
+  .sort((a,b)=>((b.star?1:0)-(a.star?1:0))||((a.due||"9")<(b.due||"9")?-1:(a.due||"9")>(b.due||"9")?1:0)||((a.order??a.createdAt)-(b.order??b.createdAt))).slice(0,6); }
+function jFocoPick(ids){ const L=jFocoCands(ids);
+  return `<div class="jfpick"><input type="text" data-jf="q" placeholder="Busca una tarea… (Enter agrega la primera, Esc cierra)" value="${esc(jFocoQ)}" aria-label="Buscar tarea para Foco">${L.map((t,i)=>`<button class="it ${i===0?"sel":""}" type="button" data-jf="pick" data-id="${t.id}">${t.star?"★ ":""}${esc(t.title)}${t.tag?`<small>${esc(t.tag)}</small>`:""}</button>`).join("")||`<div class="jfe">No hay tareas abiertas con ese texto.</div>`}</div>`; }
+function jFocoInsert(){ if(jCur!==jToday()){ toast("La lista de Foco va en el día de hoy."); return; }
+  const ex=jEd.querySelector(".jfoco"); if(ex){ ex.scrollIntoView({block:"center",behavior:"smooth"}); toast("Hoy ya tiene la lista de Foco."); return; }
+  const el=document.createElement("div"); el.className="jfoco"; el.setAttribute("contenteditable","false"); el.setAttribute("data-ids",focoIds().join(","));
+  const after=document.createElement("div"); after.innerHTML="<br>";
+  const sl=getSelection(), r=sl.rangeCount&&jEd.contains(sl.getRangeAt(0).startContainer)?sl.getRangeAt(0):null, top=r?jTop(r.startContainer):null;
+  if(top&&top!==jEd&&top.parentNode===jEd){ top.after(el); el.after(after); } else { jEd.appendChild(el); jEd.appendChild(after); }
+  jFocoPaint(); jEdited=true; jStore(jCur); const c=document.createRange(); c.setStart(after,0); c.collapse(true); sl.removeAllRanges(); sl.addRange(c); }
+$("#jFocoBtn").addEventListener("mousedown",e=>e.preventDefault());
+$("#jFocoBtn").addEventListener("click",()=>{ if(document.activeElement!==jEd) jEd.focus(); jFocoInsert(); });
+jEd.addEventListener("mousedown",e=>{ const el=e.target.closest&&e.target.closest(".jfoco"); if(!el) return; if(!e.target.closest("input")) e.preventDefault(); },true);
+jEd.addEventListener("click",e=>{ const el=e.target.closest&&e.target.closest(".jfoco"); if(!el) return; e.preventDefault(); e.stopPropagation();
+  const b=e.target.closest("[data-jf]"); if(!b) return; const a=b.dataset.jf, row=b.closest("[data-id]"), id=row&&row.dataset.id;
+  if(a==="go"&&id) showTask(id);
+  else if(a==="out"&&id){ const t=taskById(id); focoOut(id); toast("Sacada de Foco: "+(t?t.title:"")); }
+  else if(a==="top"&&id) focoTop(id);
+  else if(a==="add"){ el.dataset.pick="1"; jFocoQ=""; jFocoPaint(); const n=el.querySelector("input"); n&&n.focus(); }
+  else if(a==="pick"&&id){ delete el.dataset.pick; focoAdd(id); }
+  else if(a==="rm"){ const nx=el.nextElementSibling; el.remove(); if(nx&&!nx.textContent.trim()&&!nx.querySelector("span,a,img")) nx.remove(); jEdited=true; jStore(jCur); toast("Lista de Foco quitada de la bitácora. Foco no cambió."); } },true);
+jEd.addEventListener("input",e=>{ const n=e.target; if(!(n.tagName==="INPUT"&&n.dataset.jf==="q")) return; e.stopImmediatePropagation(); jFocoQ=n.value; jFocoPaint(); },true);
+jEd.addEventListener("beforeinput",e=>{ if(e.target.tagName==="INPUT"&&e.target.closest(".jfoco")) e.stopImmediatePropagation(); },true);
+jEd.addEventListener("keydown",e=>{ const n=e.target;
+  if(n.tagName==="INPUT"&&n.dataset.jf==="q"){ e.stopImmediatePropagation(); const el=n.closest(".jfoco");
+    if(e.key==="Escape"){ e.preventDefault(); delete el.dataset.pick; jFocoPaint(); jEd.focus(); }
+    else if(e.key==="Enter"){ e.preventDefault(); const f=el.querySelector('[data-jf="pick"]'); if(f){ delete el.dataset.pick; focoAdd(f.dataset.id); } }
+    return; }
+  // the block is not text: Backspace/Delete next to it do not erase it (use its ✕)
+  if((e.key==="Backspace"||e.key==="Delete")&&jEd.querySelector(".jfoco")){ const sl=getSelection(); if(!sl.rangeCount) return; const r=sl.getRangeAt(0);
+    if(!r.collapsed){ if([...jEd.querySelectorAll(".jfoco")].some(b=>r.intersectsNode(b))){ e.preventDefault(); toast("La lista de Foco se quita con su ✕."); } return; }
+    const top=jTop(r.startContainer); if(!top||top===jEd) return;
+    const pre=r.cloneRange(); pre.selectNodeContents(top); pre.setEnd(r.startContainer,r.startOffset); const atStart=!pre.toString().length;
+    const post=r.cloneRange(); post.selectNodeContents(top); post.setStart(r.startContainer,r.startOffset); const atEnd=!post.toString().length;
+    const nb=e.key==="Backspace"?(atStart&&top.previousElementSibling):(atEnd&&top.nextElementSibling);
+    if(nb&&nb.classList&&nb.classList.contains("jfoco")){ e.preventDefault(); if(e.key==="Backspace"&&!top.textContent.trim()&&top.nextElementSibling){ top.remove(); jEdited=true; jStore(jCur); } } } },true);
 // tasks left open on earlier days: one click carries them to today
 function jCarryList(){ const today=jToday(); return S.tasks.filter(t=>!t.completed&&t.plan&&t.plan<today).sort((a,b)=>a.plan<b.plan?-1:a.plan>b.plan?1:(a.order??a.createdAt)-(b.order??b.createdAt)); }
 function jCarryRender(){ const el=$("#jCarry"); if(!el) return; const today=jToday(), L=jCur===today&&lsGet("pp-jcarry")!==today?jCarryList():[];

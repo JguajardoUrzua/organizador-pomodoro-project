@@ -273,6 +273,29 @@ input[type=date]{background:var(--surface);border:1px solid var(--line);border-r
 .jtask.done{text-decoration:line-through;opacity:.75}
 /* @ task references in the bitácora: a live chip with its box, project and state */
 .jref{display:inline-flex;align-items:center;gap:6px;font-family:"IBM Plex Sans",system-ui,sans-serif;font-size:.86em;line-height:1.4;padding:1px 9px 1px 5px;margin:1px 2px;border-radius:8px;vertical-align:baseline;cursor:pointer;border:1px solid color-mix(in srgb,var(--accent) 35%,var(--line));background:color-mix(in srgb,var(--accent) 7%,var(--surface));color:var(--ink);user-select:all;max-width:100%}
+.jfoco{display:block;margin:8px 0;padding:8px 10px;border:1.5px solid color-mix(in srgb,var(--accent) 45%,var(--line));border-radius:12px;background:color-mix(in srgb,var(--accent) 5%,var(--surface));font-family:"IBM Plex Sans",system-ui,sans-serif;font-size:.86rem;line-height:1.4;cursor:default;user-select:none;max-width:560px}
+.jfoco .jfh{display:flex;align-items:center;gap:6px;font-weight:700;color:var(--accent);margin-bottom:4px}
+.jfoco .jfh small{font-weight:500;color:var(--ink-2)}
+.jfoco .jfh .jsp{flex:1}
+.jfoco .jfr{display:flex;align-items:center;gap:8px;padding:4px 2px;border-top:1px solid var(--line)}
+.jfoco .jfn{flex:none;width:20px;height:20px;border-radius:50%;display:grid;place-items:center;font-size:.72rem;font-weight:700;border:1.5px solid var(--line);color:var(--ink-2)}
+.jfoco .jfr.jnow .jfn{border-color:var(--accent);color:var(--accent)}
+.jfoco .jfl{font-size:.66rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3);width:68px;flex:none}
+.jfoco .jfr.jnow .jfl{color:var(--accent)}
+.jfoco .jft{all:unset;cursor:pointer;flex:1;min-width:0;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.jfoco .jft:hover{text-decoration:underline}
+.jfoco .jfp{font-size:.78em;color:var(--ink-2);white-space:nowrap}
+.jfoco button.jfb{all:unset;cursor:pointer;width:24px;height:24px;display:grid;place-items:center;border-radius:6px;color:var(--ink-2);flex:none}
+.jfoco button.jfb:hover{background:var(--surface-2);color:var(--ink)}
+.jfoco .jfe{color:var(--ink-3);padding:4px 2px;border-top:1px solid var(--line)}
+.jfoco .jfadd{all:unset;cursor:pointer;color:var(--accent);font-weight:600;font-size:.82rem;padding:4px 2px}
+.jfoco .jfadd:hover{text-decoration:underline}
+.jfoco.past{border-style:dashed;opacity:.85}
+.jfoco .jfpick{display:grid;gap:4px;margin-top:4px}
+.jfoco .jfpick input{font:inherit;padding:5px 8px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--ink);user-select:text}
+.jfoco .jfpick .it{all:unset;cursor:pointer;display:block;padding:4px 8px;border-radius:6px}
+.jfoco .jfpick .it:hover,.jfoco .jfpick .it.sel{background:var(--surface-2)}
+.jfoco .jfpick .it small{color:var(--ink-2);margin-left:6px}
 .jref .bx{width:14px;height:14px;border:1.6px solid var(--ink-2);border-radius:4px;flex:none;display:grid;place-items:center;background:var(--surface)}
 .jref .bx:hover{border-color:var(--accent)}
 .jref .tt{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
